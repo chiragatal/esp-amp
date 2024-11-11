@@ -1,0 +1,145 @@
+menu "ESP Asymmetric Multi-Processing(AMP) Framework"
+
+    config ESP_AMP_ENABLED
+        depends on (IDF_TARGET_ESP32C6 || IDF_TARGET_ESP32P4)
+        bool "Enable ESP Asymmetric Multi-Processing(AMP) framework"
+        default "n"
+        help
+            Enable this feature if you plan to use ESP-AMP framework
+
+    choice ESP_AMP_SUBCORE_TYPE
+        prompt "ESP AMP subcore type"
+        depends on ESP_AMP_ENABLED
+        default ESP_AMP_SUBCORE_TYPE_LP_CORE if IDF_TARGET_ESP32C6
+        default ESP_AMP_SUBCORE_TYPE_HP_CORE if IDF_TARGET_ESP32P4
+        help
+            Choose the ESP AMP SubCore type: HP core or LP core
+
+        config ESP_AMP_SUBCORE_TYPE_LP_CORE
+            bool "LP Core"
+            depends on SOC_LP_CORE_SUPPORTED
+            
+        config ESP_AMP_SUBCORE_TYPE_HP_CORE
+            bool "HP Core"
+            select ESP_AMP_SUBCORE_USE_HP_MEM
+            select FREERTOS_UNICORE
+    endchoice
+
+    menu "ESP_AMP Memory Management"
+        depends on ESP_AMP_ENABLED
+
+        choice ESP_AMP_SHARED_MEM_LOC
+            bool "Allocate shared memory in HP RAM or LP RAM"
+            default ESP_AMP_SHARED_MEM_IN_HP
+            help
+                Choose either HP RAM or LP RAM to allocate shared memory used by ESP AMP
+
+            config ESP_AMP_SHARED_MEM_IN_HP
+                bool "ESP AMP shared memory in HP RAM"
+
+            config ESP_AMP_SHARED_MEM_IN_LP
+                bool "ESP AMP shared memory in LP RAM"
+        endchoice
+
+        config ESP_AMP_SHARED_MEM_SIZE
+            int "Reserved shared memory size for system info and IPC Queue (Bytes)"
+            default 10240
+            range 1024 102400
+            help
+                Configure the size of shared memory for system info and queue buffer
+
+        config ESP_AMP_SUBCORE_USE_HP_MEM
+            bool "Load binary of subcore app into HP RAM"
+            default "n"
+            help
+                Enable this feature to load subcore app into HP RAM
+
+        config ESP_AMP_SUBCORE_USE_HP_MEM_SIZE
+            int "Size of HP RAM to hold binary of subcore app"
+            depends on ESP_AMP_SUBCORE_USE_HP_MEM
+            default 16384 if IDF_TARGET_ESP32C6
+            default 102400 if IDF_TARGET_ESP32P4
+            range 16384 131072 
+            help
+                Configure the size of HP RAM to hold subcore app
+
+        config ESP_AMP_SUBCORE_STACK_SIZE_MIN
+            int "Minimal stack size for subcore app"
+            default 1024 if IDF_TARGET_ESP32C6
+            default 16384 if IDF_TARGET_ESP32P4
+            range 256 32768
+            help
+                Configure the minimal size of stack space for subcore app. stack
+                is allocated from LP RAM on ESP32-C6 and HP RAM on ESP32-P4. This
+                option serves as a lower bound for the stack size. If the remaining
+                memory space is insufficient to allocate the stack, build will fail.
+    endmenu
+
+    menu "ESP_AMP Subcore Hardware FPU"
+        depends on IDF_TARGET_ESP32P4
+
+        config ESP_AMP_SUBCORE_ENABLE_HW_FPU
+            bool "Enable and use hardware FPU for floating-point operations"
+            depends on IDF_TARGET_ESP32P4
+            default "y"
+            help
+                Enable the hardware FPU and use it for floating-point operations.
+                If disabled or unsupported, then all floating-point operations will
+                be performed using software FPU, which is significantly slower.
+        
+        config ESP_AMP_SUBCORE_USE_FPU_ISR
+            bool "Enable the use of hardware FPU under ISR context"
+            depends on ESP_AMP_SUBCORE_ENABLE_HW_FPU
+            default "n"
+            help 
+                Enable this option to support the floating-point operations under ISR context.
+                Otherwise, using hardware FPU under ISR is prohibited and will trigger illegal 
+                instruction exception. Note, enable this option will add significant overhead for all
+                ISR handler, no matter whether floating-point operations is really performed.
+    endmenu
+
+    config ESP_AMP_EVENT_TABLE_LEN
+        depends on ESP_AMP_ENABLED
+        int "Number of OS-specific event handles ESP-AMP events can bind to (excluding reserved ones)"
+        default 8
+        range 4 64
+        help
+            The maximum number of OS-specific event handles allows ESP-AMP event to bind to.
+            Bound to OS-provided event handles (e.g. EventGroupHandle in FreeRTOS) allows the
+            task waiting on ESP-AMP events to be suspended by OS and resumed by OS when the
+            event bits are set, instead of busy-waiting and checking the event bits in a loop.
+            One event handle is reserved for each OS environment (Not the case in baremetal).
+            This reserved event handle does not count towards this parameter.
+
+    config ESP_AMP_SW_INTR_HANDLER_TABLE_LEN
+        depends on ESP_AMP_ENABLED
+        int "Number of software interrupt handlers"
+        default 8
+        range 4 64
+        help
+            Software interrupt handlers will be called when there is an incoming software
+            interrupt triggered by another core. Multiple handlers can process a single
+            interrupt. In the meantime, a single handler can process multiple interrupts.
+            This parameter here defines the maximum number of handlers can be registered.
+            It has nothing to do with the software interrupt types (BIT(0) to BIT(31)).
+
+    config ESP_AMP_RPC_MAX_PENDING_REQ
+        depends on ESP_AMP_ENABLED
+        int "Number of pending requests supported by ESP AMP RPC"
+        default 4
+        range 1 8
+        help
+            RPC client and server buffer unprocessed requests and responses in FreeRTOS
+            environment. When consuming speed is slower than producing, up to 
+            ESP_AMP_RPC_MAX_PENDING_REQ data can be kept in queue before dropping.
+
+    config ESP_AMP_RPC_SERVICE_TABLE_LEN
+        depends on ESP_AMP_ENABLED
+        int "Number of services supported by ESP AMP RPC server"
+        default 8
+        range 0 100
+        help
+            RPC server can serve up to ESP_AMP_RPC_SERVICE_TABLE_LEN services. Make sure 
+            this value is larger than the number of services RPC server performs.
+
+endmenu

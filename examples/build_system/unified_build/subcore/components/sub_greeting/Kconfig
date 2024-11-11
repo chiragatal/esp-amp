@@ -1,0 +1,7 @@
+menu "Subcore Example Greeting Configuration"
+
+    config SUBCORE_GREETING_MESSAGE
+        string "Subcore greeting message"
+        default "Hello from subcore (default)"
+
+endmenu

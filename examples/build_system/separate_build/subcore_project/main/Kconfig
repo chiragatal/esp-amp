@@ -1,0 +1,7 @@
+menu "Subcore Example Main Configuration"
+
+    config SUBCORE_MAIN_DELAY_MS
+        int "Subcore main loop delay (ms)"
+        default 1000
+
+endmenu

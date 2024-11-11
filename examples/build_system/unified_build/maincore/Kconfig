@@ -1,0 +1,17 @@
+menu "Example Configuration"
+
+    choice SUBCORE_FIRMWARE_LOCATION
+        prompt "Subcore firmware location"
+        default SUBCORE_FIRMWARE_EMBEDDED
+        help
+            Select whether the subcore firmware is embedded in the main firmware or flashed separately.
+            If embedded, the subcore firmware is built into the main firmware.
+            If flashed separately, the subcore firmware is built into partition table.
+
+        config SUBCORE_FIRMWARE_EMBEDDED
+            bool "Embedded into main firmware"
+        config SUBCORE_FIRMWARE_PARTITION
+            bool "Dedicated Flash Partition"
+    endchoice
+
+endmenu

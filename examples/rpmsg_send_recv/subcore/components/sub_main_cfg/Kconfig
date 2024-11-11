@@ -1,0 +1,11 @@
+menu "Subcore Example Configuration"
+
+    config EXAMPLE_RPMSG_ENABLE_INTERRUPT_ON_SUBCORE
+        bool "Handle incoming rpmsg messages with interrupt on subcore"
+        default "y"
+        help
+            ESP-AMP RPMsg support both interrupt and polling mode. Enable this option 
+            to handle incoming rpmsg messages with interrupt. Otherwise, polling mode
+            is demonstrated.
+
+endmenu

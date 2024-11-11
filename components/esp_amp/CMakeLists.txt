@@ -1,0 +1,180 @@
+idf_build_get_property(target IDF_TARGET)
+
+set(srcs "")
+set(includes "")
+set(priv_includes "")
+
+if(BOOTLOADER_BUILD)
+    list(APPEND srcs
+        "${IDF_PATH}/components/hal/uart_hal_iram.c"
+        "${IDF_PATH}/components/hal/uart_hal.c"
+
+        "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp.c"
+        "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp_sys_info.c"
+        "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp_rpmsg.c"
+        "${ESP_AMP_PATH}/components/esp_amp/src/event/baremetal/esp_amp_event.c"
+        "${ESP_AMP_PATH}/components/esp_amp/src/queue/esp_amp_queue.c"
+        "${ESP_AMP_PATH}/components/esp_amp/src/rpc/baremetal/rpc_server.c"
+        "${ESP_AMP_PATH}/components/esp_amp/src/rpc/baremetal/rpc_client.c"
+        "${ESP_AMP_PATH}/components/esp_amp/src/sw_intr/esp_amp_sw_intr_common.c"
+
+        "${ESP_AMP_PATH}/components/esp_amp/port/arch/riscv/esp_amp_arch.c"
+        "${ESP_AMP_PATH}/components/esp_amp/port/utils/syscalls.c"
+    )
+
+    list(APPEND includes
+        "${ESP_AMP_PATH}/components/esp_amp/include"
+        "${ESP_AMP_PATH}/components/esp_amp/priv_include"
+        "${ESP_AMP_PATH}/components/esp_amp/port/include"
+    )
+
+    if(CONFIG_ESP_AMP_SUBCORE_TYPE_LP_CORE)
+        list(APPEND includes
+            "${ESP_AMP_PATH}/components/esp_amp/port/platform/lp_core"
+        )
+
+        list(APPEND srcs
+            "${ESP_AMP_PATH}/components/esp_amp/src/sw_intr/pmu/esp_amp_sw_intr.c"
+            "${ESP_AMP_PATH}/components/esp_amp/port/platform/lp_core/esp_amp_platform.c"
+        )
+    else()
+        list(APPEND includes
+            "${ESP_AMP_PATH}/components/esp_amp/port/platform/hp_core"
+        )
+
+        list(APPEND srcs
+            "${ESP_AMP_PATH}/components/esp_amp/src/sw_intr/intmtx/esp_amp_sw_intr.c"
+            "${ESP_AMP_PATH}/components/esp_amp/port/platform/hp_core/esp_amp_platform.c"
+        )
+    endif()
+
+    list(APPEND reqs soc hal)
+
+    if(IDF_TARGET STREQUAL "esp32c6")
+        list(APPEND reqs ulp)
+    endif()
+
+    idf_component_register(
+        SRCS ${srcs}
+        INCLUDE_DIRS ${includes}
+        REQUIRES ${reqs}
+    )
+
+    idf_build_get_property(sdkconfig_header SDKCONFIG_HEADER)
+    idf_build_get_property(idf_path IDF_PATH)
+    idf_build_get_property(idf_target IDF_TARGET)
+
+    function(create_arg_file arguments output_file)
+        # Escape all spaces
+        list(TRANSFORM arguments REPLACE " " "\\\\ ")
+        # Create a single string with all args separated by space
+        list(JOIN arguments " " arguments)
+        # Write it into the response file
+        file(WRITE ${output_file} ${arguments})
+    endfunction()
+
+    get_filename_component(sdkconfig_dir ${SDKCONFIG_HEADER} DIRECTORY)
+
+    list(APPEND ESP_AMP_PREPRO_ARGS -I${COMPONENT_DIR})
+    list(APPEND ESP_AMP_PREPRO_ARGS -I${sdkconfig_dir})
+    list(APPEND ESP_AMP_PREPRO_ARGS -I${IDF_PATH}/components/esp_system/ld)
+    list(APPEND ESP_AMP_PREPRO_ARGS -I${ESP_AMP_PATH}/components/esp_amp/priv_include)
+    list(APPEND ESP_AMP_PREPRO_ARGS -I${IDF_PATH}/components/soc/${IDF_TARGET}/include)
+    list(APPEND ESP_AMP_PREPRO_ARGS -I${IDF_PATH}/components/esp_common/include)
+
+    # Pre-process the linker script
+    set(ESP_AMP_LD_TEMPLATE ${ESP_AMP_PATH}/components/esp_amp/ld/${IDF_TARGET}/memory.ld)
+    get_filename_component(ESP_AMP_LD_SCRIPT ${ESP_AMP_LD_TEMPLATE} NAME)
+
+    # Put all arguments to the list
+    set(preprocessor_args -D__ASSEMBLER__ -E -P -xc -o ${ESP_AMP_LD_SCRIPT} ${ESP_AMP_PREPRO_ARGS} ${ESP_AMP_LD_TEMPLATE})
+    set(compiler_arguments_file ${CMAKE_CURRENT_BINARY_DIR}/${ESP_AMP_LD_SCRIPT}_args.txt)
+    create_arg_file("${preprocessor_args}" "${compiler_arguments_file}")
+
+    add_custom_command(OUTPUT ${ESP_AMP_LD_SCRIPT}
+        COMMAND ${CMAKE_C_COMPILER} @${compiler_arguments_file}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        MAIN_DEPENDENCY ${ESP_AMP_LD_TEMPLATE}
+        DEPENDS ${SDKCONFIG_HEADER}
+        COMMENT "Generating ${ESP_AMP_LD_SCRIPT} linker script..."
+        VERBATIM)
+    add_custom_target(ld_script DEPENDS ${ESP_AMP_LD_SCRIPT})
+    add_dependencies(${COMPONENT_LIB} ld_script)
+
+    target_linker_script(${COMPONENT_LIB} INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/${ESP_AMP_LD_SCRIPT})
+
+    # To avoid warning "Manually-specified variables were not used by the project"
+    set(bypassWarning "${IDF_TARGET}")
+    set(bypassWarning "${CONFIG_ESP_ROM_HAS_LP_ROM}")
+    set(bypassWarning "${SUBCORE_APP_NAME}")
+
+else()
+    if(CONFIG_ESP_AMP_ENABLED)
+        list(APPEND includes
+            "${ESP_AMP_PATH}/components/esp_amp/include"
+            "${ESP_AMP_PATH}/components/esp_amp/port/include"
+            )
+
+        list(APPEND priv_includes
+            "${ESP_AMP_PATH}/components/esp_amp/priv_include"
+            )
+
+        list(APPEND srcs
+            "${ESP_AMP_PATH}/components/esp_amp/port/arch/riscv/esp_amp_arch.c"
+            "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp.c"
+            "${ESP_AMP_PATH}/components/esp_amp/src/event/freertos/esp_amp_event.c"
+            "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp_sys_info.c"
+            "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp_rpmsg.c"
+            "${ESP_AMP_PATH}/components/esp_amp/src/queue/esp_amp_queue.c"
+            "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp_loader.c"
+            "${ESP_AMP_PATH}/components/esp_amp/src/rpc/freertos/rpc_client.c"
+            "${ESP_AMP_PATH}/components/esp_amp/src/rpc/freertos/rpc_server.c"
+            "${ESP_AMP_PATH}/components/esp_amp/src/sw_intr/esp_amp_sw_intr_common.c"
+            )
+
+        if(CONFIG_ESP_AMP_SUBCORE_TYPE_LP_CORE)
+            list(APPEND includes
+                "${ESP_AMP_PATH}/components/esp_amp/port/platform/lp_core"
+            )
+
+            list(APPEND srcs
+                "${ESP_AMP_PATH}/components/esp_amp/src/sw_intr/pmu/esp_amp_sw_intr.c"
+                "${ESP_AMP_PATH}/components/esp_amp/port/platform/lp_core/esp_amp_platform.c"
+                )
+        else()
+            list(APPEND includes
+            "${ESP_AMP_PATH}/components/esp_amp/port/platform/hp_core"
+            )
+
+            list(APPEND srcs
+                "${ESP_AMP_PATH}/components/esp_amp/src/sw_intr/intmtx/esp_amp_sw_intr.c"
+                "${ESP_AMP_PATH}/components/esp_amp/port/platform/hp_core/esp_amp_platform.c"
+                )
+        endif()
+    endif()
+
+    list(APPEND reqs driver esp_adc bootloader_support esp_partition spi_flash)
+
+    if(IDF_TARGET STREQUAL "esp32c6")
+        list(APPEND reqs ulp)
+    endif()
+
+    idf_component_register(SRCS ${srcs}
+        INCLUDE_DIRS ${includes}
+        PRIV_INCLUDE_DIRS ${priv_includes}
+        REQUIRES ${reqs})
+
+    target_compile_definitions(${COMPONENT_LIB} PUBLIC IS_MAIN_CORE)
+
+    idf_build_get_property(project_name PROJECT_NAME)
+    idf_build_get_property(python PYTHON)
+    add_custom_target(check_symbols ALL
+        COMMAND ${python} ${ESP_AMP_PATH}/components/esp_amp/scripts/check_symbols.py --elf_file ${project_name}.elf
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        COMMENT "Checking symbols"
+        VERBATIM)
+    add_dependencies(check_symbols app)
+endif() # BOOTLOADER_BUILD
+
+idf_component_get_property(esp_amp_reqs ${COMPONENT_NAME} REQUIRES)
+message(STATUS "esp_amp_reqs: ${esp_amp_reqs}")
