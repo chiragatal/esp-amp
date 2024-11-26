@@ -222,7 +222,7 @@ esp_amp_rpc_status_t esp_amp_rpc_client_init(esp_amp_rpmsg_dev_t *rpmsg_dev, uin
     esp_amp_rpc_client.server_addr = server_addr;
 
     /* init rpmsg endpoint */
-    if (esp_amp_rpmsg_create_ept(esp_amp_rpc_client.rpmsg_dev, client_addr, esp_amp_rpc_client_isr, NULL, &esp_amp_rpc_client.rpmsg_ept) == NULL) {
+    if (esp_amp_rpmsg_create_endpoint(esp_amp_rpc_client.rpmsg_dev, client_addr, esp_amp_rpc_client_isr, NULL, &esp_amp_rpc_client.rpmsg_ept) == NULL) {
         ESP_AMP_LOGE(TAG, "Failed to create ept");
         return ESP_AMP_RPC_STATUS_FAILED;
     }
@@ -304,7 +304,7 @@ esp_amp_rpc_status_t esp_amp_rpc_client_deinit(void)
 
     if (ret == ESP_AMP_RPC_STATUS_OK) {
         if (esp_amp_rpc_client.rpmsg_dev) {
-            esp_amp_rpmsg_del_ept(esp_amp_rpc_client.rpmsg_dev, esp_amp_rpc_client.client_addr);
+            esp_amp_rpmsg_del_endpoint(esp_amp_rpc_client.rpmsg_dev, esp_amp_rpc_client.client_addr);
             esp_amp_rpc_client.rpmsg_dev = NULL;
         }
         if (esp_amp_rpc_client.pending_list.mutex) {
@@ -374,7 +374,7 @@ esp_amp_rpc_req_handle_t esp_amp_rpc_client_create_request(uint16_t service_id, 
 
     esp_amp_rpc_pending_list_dump();
 
-    esp_amp_rpc_pkt_t *pkt_out = (esp_amp_rpc_pkt_t *)esp_amp_rpmsg_create_msg(esp_amp_rpc_client.rpmsg_dev, sizeof(esp_amp_rpc_pkt_t) + params_len, ESP_AMP_RPMSG_DATA_DEFAULT);
+    esp_amp_rpc_pkt_t *pkt_out = (esp_amp_rpc_pkt_t *)esp_amp_rpmsg_create_message(esp_amp_rpc_client.rpmsg_dev, sizeof(esp_amp_rpc_pkt_t) + params_len, ESP_AMP_RPMSG_DATA_DEFAULT);
     if (pkt_out == NULL) {
         ESP_AMP_LOGE(TAG, "Failed to alloc msg buf");
         free(pending_req);

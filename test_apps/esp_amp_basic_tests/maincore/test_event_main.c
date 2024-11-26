@@ -250,7 +250,7 @@ TEST_CASE("maincore & subcore can trigger event to each other", "[esp_amp]")
     esp_amp_event_notify(EVENT_MAINCORE_READY);
 
     /* wait for subcore ready */
-    uint32_t subcore_event_bits = esp_amp_event_wait(EVENT_SUBCORE_READY, true, true, pdMS_TO_TICKS(10000));
+    uint32_t subcore_event_bits = esp_amp_event_wait(EVENT_SUBCORE_READY, true, true, 5000);
     TEST_ASSERT_EQUAL(EVENT_SUBCORE_READY, subcore_event_bits & EVENT_SUBCORE_READY);
 
     char task_name[] = "taskX";

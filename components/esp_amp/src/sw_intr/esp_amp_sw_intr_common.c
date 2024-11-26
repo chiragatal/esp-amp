@@ -4,8 +4,10 @@
 * SPDX-License-Identifier: Apache-2.0
 */
 
+#include "esp_amp_log.h"
 #include "esp_amp_sw_intr_priv.h"
-#include "esp_amp_priv.h"
+
+static const char *TAG = "sw_intr";
 
 sw_intr_handler_tbl_t sw_intr_handlers[ESP_AMP_SW_INTR_HANDLER_TABLE_LEN];
 
@@ -13,7 +15,7 @@ esp_amp_sw_intr_st_t *s_sw_intr_st;
 
 int esp_amp_sw_intr_add_handler(esp_amp_sw_intr_id_t intr_id, esp_amp_sw_intr_handler_t handler, void *arg)
 {
-    ESP_AMP_ASSERT(intr_id <= SW_INTR_ID_MAX);
+    assert(intr_id <= SW_INTR_ID_MAX);
 
     int ret = 0;
     /* find an available slot */
@@ -38,7 +40,7 @@ int esp_amp_sw_intr_add_handler(esp_amp_sw_intr_id_t intr_id, esp_amp_sw_intr_ha
 
 void esp_amp_sw_intr_delete_handler(esp_amp_sw_intr_id_t intr_id, esp_amp_sw_intr_handler_t handler)
 {
-    ESP_AMP_ASSERT(intr_id <= SW_INTR_ID_MAX);
+    assert(intr_id <= SW_INTR_ID_MAX);
 
     for (int i = 0; i < ESP_AMP_SW_INTR_HANDLER_TABLE_LEN; i++) {
         if (sw_intr_handlers[i].intr_id == intr_id && sw_intr_handlers[i].handler == handler) {

@@ -139,7 +139,7 @@ esp_amp_rpc_status_t esp_amp_rpc_client_init(esp_amp_rpmsg_dev_t *rpmsg_dev, uin
     esp_amp_rpc_client.client_addr = client_addr;
     esp_amp_rpc_client.server_addr = server_addr;
 
-    if (esp_amp_rpmsg_create_ept(esp_amp_rpc_client.rpmsg_dev, client_addr, esp_amp_rpc_client_poll, NULL, &esp_amp_rpc_client.rpmsg_ept) == NULL) {
+    if (esp_amp_rpmsg_create_endpoint(esp_amp_rpc_client.rpmsg_dev, client_addr, esp_amp_rpc_client_poll, NULL, &esp_amp_rpc_client.rpmsg_ept) == NULL) {
         ESP_AMP_LOGE(TAG, "Failed to create ept");
         return ESP_AMP_RPC_STATUS_FAILED;
     }
@@ -185,7 +185,7 @@ esp_amp_rpc_req_handle_t esp_amp_rpc_client_create_request(uint16_t service_id, 
 
     /* second, alloc tx buffer only when pending list is not full */
     int pkt_out_size = params_len + sizeof(esp_amp_rpc_pkt_t);
-    esp_amp_rpc_pkt_t *pkt_out = (esp_amp_rpc_pkt_t *)esp_amp_rpmsg_create_msg(esp_amp_rpc_client.rpmsg_dev, pkt_out_size, ESP_AMP_RPMSG_DATA_DEFAULT);
+    esp_amp_rpc_pkt_t *pkt_out = (esp_amp_rpc_pkt_t *)esp_amp_rpmsg_create_message(esp_amp_rpc_client.rpmsg_dev, pkt_out_size, ESP_AMP_RPMSG_DATA_DEFAULT);
     if (pkt_out == NULL) {
         ESP_AMP_LOGE(TAG, "No space for rpc pkt");
         esp_amp_rpc_pending_list_pop(pending_req->req_id, NULL); /* pop out pending request */
@@ -203,7 +203,7 @@ esp_amp_rpc_req_handle_t esp_amp_rpc_client_create_request(uint16_t service_id, 
     /* attach pkt_out to pending req */
     pending_req->pkt = pkt_out;
 
-    ESP_AMP_LOGD(TAG, "request(req_id=%lu, srv_id=%lu, param=%p, start_time=%lu)", pkt_out->req_id, pkt_out->service_id,
+    ESP_AMP_LOGD(TAG, "request(req_id=%u, srv_id=%u, param=%p, start_time=%lu)", pkt_out->req_id, pkt_out->service_id,
                  pkt_out->params, pending_req->start_time);
 
     return pending_req;

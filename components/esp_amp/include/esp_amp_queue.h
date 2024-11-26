@@ -7,8 +7,11 @@
 #pragma once
 
 #include "stdint.h"
+#include "stdbool.h"
 #include "stddef.h"
 #include "esp_err.h"
+
+#include "esp_amp_sys_info.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -114,21 +117,61 @@ int esp_amp_queue_init_buffer(esp_amp_queue_conf_t* queue_conf, uint16_t queue_l
  * Initialize the virtqueue handler based on the virtqueue configuration
  * @param queue                 allocated virtqueue handler to initialize
  * @param queue_conf            initialized virtqueue configuration
- * @param cb_func               callback function which should be called whenever a new item(data buffer) arrives
- * @param ntf_func              notify function which should be called after sending/responding the data buffer
- * @param priv_data             pointer of arbitrary data which will be passed as the argument when invoking cb_func & ntf_func
+ * @param cb_func               callback function, set to `NULL` if not required. When `is_master` is true, it will be invoked after successfully sending data; Otherwise, it will be invoked when receiving new data.
+ * @param priv_data             pointer of arbitrary data which will be passed as the argument when invoking cb_func
  * @param is_master             whether to initialize as the role of `master-core` for this virtqueue
  *
  * @retval ESP_OK
  */
-int esp_amp_queue_create(esp_amp_queue_t* queue, esp_amp_queue_conf_t* queue_conf, esp_amp_queue_cb_t cb_func, esp_amp_queue_cb_t ntf_func, void* priv_data, bool is_master);
+int esp_amp_queue_create(esp_amp_queue_t* queue, esp_amp_queue_conf_t* queue_conf, esp_amp_queue_cb_t cb_func, void* priv_data, bool is_master);
+
+#if IS_MAIN_CORE
+/**
+ * Initialize the virtqueue on main-core
+ *
+ * @param queue                 allocated virtqueue handler to initialize
+ * @param queue_len             the length of `Virtqueue` (number of queue entries), must be power of 2
+ * @param queue_item_size       the maximum size of each `Virtqueue` element
+ * @param cb_func               callback function, set to `NULL` if not required. When `is_master` is true, it will be invoked after successfully sending data; Otherwise, it will be invoked when receiving new data.
+ * @param priv_data             pointer of arbitrary data which will be passed as the argument when invoking cb_func
+ * @param is_master             whether to initialize as the role of `master-core` for this virtqueue
+ * @param sysinfo_id            sysinfo id of shared memory allocated for virtqueue
+ *
+ * @retval ESP_OK               successfully initialize the virtqueue
+ * @retval ESP_ERR_INVALID_ARG  inappropriate `queue_len`, must be power of 2
+ * @retval ESP_ERR_NO_MEM       insufficient shared memory (sysinfo) space
+ */
+int esp_amp_queue_main_init(esp_amp_queue_t* queue, uint16_t queue_len, uint16_t queue_item_size, esp_amp_queue_cb_t cb_func, void* priv_data, bool is_master, esp_amp_sys_info_id_t sysinfo_id);
+#endif
+
+/**
+ * Initialize the virtqueue on sub-core
+ *
+ * @param queue                 allocated virtqueue handler to initialize
+ * @param cb_func               callback function, set to `NULL` if not required. When `is_master` is true, it will be invoked after successfully sending data; Otherwise, it will be invoked when receiving new data.
+ * @param priv_data             pointer of arbitrary data which will be passed as the argument when invoking cb_func
+ * @param is_master             whether to initialize as the role of `master-core` for this virtqueue
+ * @param sysinfo_id            sysinfo id of shared memory allocated for virtqueue
+ *
+ * @retval ESP_OK               successfully initialize the virtqueue
+ * @retval ESP_ERR_NOT_FOUND    failed to find corresponding sysinfo entry with given sysinfo_id
+ */
+int esp_amp_queue_sub_init(esp_amp_queue_t* queue, esp_amp_queue_cb_t cb_func, void* priv_data, bool is_master, esp_amp_sys_info_id_t sysinfo_id);
+
+/**
+ * Enable the virtqueue software interrupt handler, must be invoked when handling incoming data with interrupt on `remote-core`
+ * @param queue                     virtqueue handler
+ *
+ * @retval ESP_OK                   successfully enable the virtqueue software interrupt handler
+ * @retval ESP_ERR_NOT_SUPPORTED    failed to enable, expected to be called only on `remote-core`
+ * @retval ESP_ERR_NOT_FINISHED     failed to invoke `esp_amp_sw_intr_add_handler` internally
+ */
+int esp_amp_queue_intr_enable(esp_amp_queue_t* queue);
 
 #define ESP_AMP_QUEUE_AVAILABLE_MASK(bit)                       (uint16_t)((uint16_t)(bit) << 7)
 #define ESP_AMP_QUEUE_USED_MASK(bit)                            (uint16_t)((uint16_t)(bit) << 15)
 #define ESP_AMP_QUEUE_FLAG_IS_USED(flipCounter, flag)           (((ESP_AMP_QUEUE_AVAILABLE_MASK(1) & (flag)) != ESP_AMP_QUEUE_AVAILABLE_MASK((flipCounter))) && ((ESP_AMP_QUEUE_USED_MASK(1) & (flag)) != ESP_AMP_QUEUE_USED_MASK((flipCounter))))
 #define ESP_AMP_QUEUE_FLAG_IS_AVAILABLE(flipCounter, flag)      (((ESP_AMP_QUEUE_AVAILABLE_MASK(1) & (flag)) == ESP_AMP_QUEUE_AVAILABLE_MASK((flipCounter))) && ((ESP_AMP_QUEUE_USED_MASK(1) & (flag)) != ESP_AMP_QUEUE_USED_MASK((flipCounter))))
-
-#define RISCV_MEMORY_BARRIER() asm volatile ("fence" ::: "memory")
 
 #ifdef __cplusplus
 }

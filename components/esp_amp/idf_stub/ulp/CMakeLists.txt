@@ -1,6 +1,4 @@
 set(ulp_lp_core_srcs
-    "${IDF_PATH}/components/ulp/lp_core/lp_core/start.S"
-    "${IDF_PATH}/components/ulp/lp_core/lp_core/vector.S"
     "${IDF_PATH}/components/ulp/lp_core/lp_core/port/${IDF_TARGET}/vector_table.S"
     "${IDF_PATH}/components/ulp/lp_core/shared/ulp_lp_core_memory_shared.c"
     "${IDF_PATH}/components/ulp/lp_core/shared/ulp_lp_core_lp_timer_shared.c"
@@ -12,6 +10,12 @@ set(ulp_lp_core_srcs
     "${IDF_PATH}/components/ulp/lp_core/lp_core/lp_core_panic.c"
     "${IDF_PATH}/components/ulp/lp_core/lp_core/lp_core_interrupt.c"
     "${IDF_PATH}/components/ulp/lp_core/lp_core/lp_core_i2c.c"
+
+    "${IDF_PATH}/components/hal/uart_hal_iram.c"
+    "${IDF_PATH}/components/hal/uart_hal.c"
+
+    "vector.S"
+    "start.S"
 )
 
 set(ulp_lp_core_includes

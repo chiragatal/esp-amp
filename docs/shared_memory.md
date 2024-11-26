@@ -25,7 +25,7 @@ SysInfo IDs are unsigned short integers range from `0x0000` to `0xffff`. The upp
 By default, SysInfo supports up to 16 entries. At present, ESP-AMP internally takes 6 entries which are:
 
 ``` shell
-    SYS_INFO_ID_SW_INTR = 0xff00, /* reserved for software interrupt */
+    SYS_INFO_RESERVED_ID_SW_INTR = 0xff00, /* reserved for software interrupt */
     SYS_INFO_ID_EVENT = 0xff01, /* reserved for event */
     SYS_INFO_ID_SHARED_MEM = 0xff02, /* reserved for shared memory */
     SYS_INFO_ID_VQUEUE_TX = 0xff03,  /* reserved for virtqueue  */

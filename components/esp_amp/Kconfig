@@ -43,8 +43,10 @@ menu "ESP Asymmetric Multi-Processing(AMP) Framework"
 
         config ESP_AMP_SHARED_MEM_SIZE
             int "Reserved shared memory size for system info and IPC Queue (Bytes)"
-            default 10240
-            range 1024 102400
+            default 16384 if IDF_TARGET_ESP32C6
+            default 16384 if IDF_TARGET_ESP32P4
+            range 1024 20480 if IDF_TARGET_ESP32C6
+            range 1024 65536 if IDF_TARGET_ESP32P4
             help
                 Configure the size of shared memory for system info and queue buffer
 
@@ -58,8 +60,9 @@ menu "ESP Asymmetric Multi-Processing(AMP) Framework"
             int "Size of HP RAM to hold binary of subcore app"
             depends on ESP_AMP_SUBCORE_USE_HP_MEM
             default 16384 if IDF_TARGET_ESP32C6
-            default 102400 if IDF_TARGET_ESP32P4
-            range 16384 131072 
+            default 65536 if IDF_TARGET_ESP32P4
+            range 16384 49152 if IDF_TARGET_ESP32C6
+            range 65536 196608 if IDF_TARGET_ESP32P4
             help
                 Configure the size of HP RAM to hold subcore app
 
@@ -87,7 +90,7 @@ menu "ESP Asymmetric Multi-Processing(AMP) Framework"
                 If disabled or unsupported, then all floating-point operations will
                 be performed using software FPU, which is significantly slower.
         
-        config ESP_AMP_SUBCORE_USE_FPU_ISR
+        config ESP_AMP_SUBCORE_ENABLE_HW_FPU_IN_ISR
             bool "Enable the use of hardware FPU under ISR context"
             depends on ESP_AMP_SUBCORE_ENABLE_HW_FPU
             default "n"

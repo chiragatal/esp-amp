@@ -6,20 +6,19 @@ set(priv_includes "")
 
 if(BOOTLOADER_BUILD)
     list(APPEND srcs
-        "${IDF_PATH}/components/hal/uart_hal_iram.c"
-        "${IDF_PATH}/components/hal/uart_hal.c"
-
         "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp.c"
         "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp_sys_info.c"
         "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp_rpmsg.c"
+        "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp_utils.c"
         "${ESP_AMP_PATH}/components/esp_amp/src/event/baremetal/esp_amp_event.c"
-        "${ESP_AMP_PATH}/components/esp_amp/src/queue/esp_amp_queue.c"
+        "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp_queue.c"
         "${ESP_AMP_PATH}/components/esp_amp/src/rpc/baremetal/rpc_server.c"
         "${ESP_AMP_PATH}/components/esp_amp/src/rpc/baremetal/rpc_client.c"
         "${ESP_AMP_PATH}/components/esp_amp/src/sw_intr/esp_amp_sw_intr_common.c"
 
         "${ESP_AMP_PATH}/components/esp_amp/port/arch/riscv/esp_amp_arch.c"
         "${ESP_AMP_PATH}/components/esp_amp/port/utils/syscalls.c"
+        "${ESP_AMP_PATH}/components/esp_amp/port/env/baremetal/esp_amp_env.c"
     )
 
     list(APPEND includes
@@ -73,14 +72,17 @@ if(BOOTLOADER_BUILD)
         file(WRITE ${output_file} ${arguments})
     endfunction()
 
+    # Header files needed by linker script generator
     get_filename_component(sdkconfig_dir ${SDKCONFIG_HEADER} DIRECTORY)
-
-    list(APPEND ESP_AMP_PREPRO_ARGS -I${COMPONENT_DIR})
     list(APPEND ESP_AMP_PREPRO_ARGS -I${sdkconfig_dir})
     list(APPEND ESP_AMP_PREPRO_ARGS -I${IDF_PATH}/components/esp_system/ld)
     list(APPEND ESP_AMP_PREPRO_ARGS -I${ESP_AMP_PATH}/components/esp_amp/priv_include)
-    list(APPEND ESP_AMP_PREPRO_ARGS -I${IDF_PATH}/components/soc/${IDF_TARGET}/include)
     list(APPEND ESP_AMP_PREPRO_ARGS -I${IDF_PATH}/components/esp_common/include)
+
+    idf_component_get_property(soc_includes soc INCLUDE_DIRS)
+    foreach(soc_include ${soc_includes})
+        list(APPEND ESP_AMP_PREPRO_ARGS -I${IDF_PATH}/components/soc/${soc_include})
+    endforeach()
 
     # Pre-process the linker script
     set(ESP_AMP_LD_TEMPLATE ${ESP_AMP_PATH}/components/esp_amp/ld/${IDF_TARGET}/memory.ld)
@@ -121,11 +123,13 @@ else()
 
         list(APPEND srcs
             "${ESP_AMP_PATH}/components/esp_amp/port/arch/riscv/esp_amp_arch.c"
+            "${ESP_AMP_PATH}/components/esp_amp/port/env/freertos/esp_amp_env.c"
             "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp.c"
             "${ESP_AMP_PATH}/components/esp_amp/src/event/freertos/esp_amp_event.c"
+            "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp_utils.c"
             "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp_sys_info.c"
             "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp_rpmsg.c"
-            "${ESP_AMP_PATH}/components/esp_amp/src/queue/esp_amp_queue.c"
+            "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp_queue.c"
             "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp_loader.c"
             "${ESP_AMP_PATH}/components/esp_amp/src/rpc/freertos/rpc_client.c"
             "${ESP_AMP_PATH}/components/esp_amp/src/rpc/freertos/rpc_server.c"
@@ -164,7 +168,9 @@ else()
         PRIV_INCLUDE_DIRS ${priv_includes}
         REQUIRES ${reqs})
 
-    target_compile_definitions(${COMPONENT_LIB} PUBLIC IS_MAIN_CORE)
+    if(CONFIG_ESP_AMP_ENABLED)
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC IS_MAIN_CORE)
+    endif()
 
     idf_build_get_property(project_name PROJECT_NAME)
     idf_build_get_property(python PYTHON)

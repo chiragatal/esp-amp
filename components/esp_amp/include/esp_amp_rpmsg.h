@@ -9,12 +9,16 @@
 #include "stdint.h"
 #include "stdbool.h"
 #include "esp_amp_queue.h"
+#include "esp_amp_sw_intr.h"
+#include "esp_amp_sys_info.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define ESP_AMP_RPMSG_DATA_DEFAULT      (uint16_t)(0x0)
+
+#define ESP_AMP_RPMSG_RESERVED_EPT_SYS_PRT      (uint16_t)(UINT16_MAX)
 
 typedef struct esp_amp_rpmsg_head_t {
     uint16_t src_addr;                  /* source endpoint address */
@@ -51,7 +55,7 @@ typedef struct esp_amp_rpmsg_dev_t {
  * Create an endpoint with specific address
  * @param rpmsg_device      rpmsg context
  * @param ept_addr          endpoint address the created endpoint will have
- * @param ept_rx_cb         endpoint callback function, set to NULL if don't need
+ * @param ept_rx_cb         endpoint callback triggered in ISR context when receiving incoming messages, set to NULL if don't need
  * @param ept_rx_cb_data    endpoint data pointer saved in endpoint data structure, passed to the callback function when invoked
  * @param ept_ctx           allocated endpoint data structure in advance
  *
@@ -63,7 +67,7 @@ typedef struct esp_amp_rpmsg_dev_t {
  * `ept_ctx` should be statically or dynamically allocated in advance.
  * This API will return the same pointer as `ept_ctx` passed in if successful.
  */
-esp_amp_rpmsg_ept_t* esp_amp_rpmsg_create_ept(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr, esp_amp_ept_cb_t ept_rx_cb, void* ept_rx_cb_data, esp_amp_rpmsg_ept_t* ept_ctx);
+esp_amp_rpmsg_ept_t* esp_amp_rpmsg_create_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr, esp_amp_ept_cb_t ept_rx_cb, void* ept_rx_cb_data, esp_amp_rpmsg_ept_t* ept_ctx);
 
 
 /**
@@ -78,7 +82,7 @@ esp_amp_rpmsg_ept_t* esp_amp_rpmsg_create_ept(esp_amp_rpmsg_dev_t* rpmsg_device,
  * This API will return `NULL` if the endpoint with corresponding `ept_addr` doesn't exist
  * If successful, the pointer to the deleted endpoint data structure will be returned, which can be freed or re-used later.
  */
-esp_amp_rpmsg_ept_t* esp_amp_rpmsg_del_ept(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr);
+esp_amp_rpmsg_ept_t* esp_amp_rpmsg_del_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr);
 
 
 /**
@@ -94,7 +98,7 @@ esp_amp_rpmsg_ept_t* esp_amp_rpmsg_del_ept(esp_amp_rpmsg_dev_t* rpmsg_device, ui
  * Rebind an existing endpoint(specified using `ept_addr`) to different callback function(`ept_rx_cb`) and `ept_rx_cb_data`.
  * This API will return `NULL` if the endpoint with corresponding `ept_addr` doesn't exist. If successful, the pointer to the modified endpoint data structure will be returned.
  */
-esp_amp_rpmsg_ept_t* esp_amp_rpmsg_rebind_ept(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr, esp_amp_ept_cb_t ept_rx_cb, void* ept_rx_cb_data);
+esp_amp_rpmsg_ept_t* esp_amp_rpmsg_rebind_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr, esp_amp_ept_cb_t ept_rx_cb, void* ept_rx_cb_data);
 
 /**
  * Search for an endpoint with specific address
@@ -108,7 +112,7 @@ esp_amp_rpmsg_ept_t* esp_amp_rpmsg_rebind_ept(esp_amp_rpmsg_dev_t* rpmsg_device,
  * This API will return `NULL` if the endpoint with corresponding `ept_addr` doesn't exist.
  * If successful, the pointer to the endpoint will be returned.
  */
-esp_amp_rpmsg_ept_t* esp_amp_rpmsg_search_ept(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr);
+esp_amp_rpmsg_ept_t* esp_amp_rpmsg_search_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr);
 
 
 /**
@@ -138,7 +142,7 @@ int esp_amp_rpmsg_poll(esp_amp_rpmsg_dev_t* rpmsg_dev);
  * @retval NULL             no available buffer to use / message size is larger than the maximum settings (can use esp_amp_rpmsg_get_max_size to check)
  * @retval void* ptr        successfully get the pointer to the data buffer for read/write (should be subsequently sent with nocopy version API)
  */
-void* esp_amp_rpmsg_create_msg(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t nbytes, uint16_t flags);
+void* esp_amp_rpmsg_create_message(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t nbytes, uint16_t flags);
 
 /**
  * Create and return a rpmsg buffer to read/write in place and then send with no-copy, must be called in interrupt context
@@ -153,11 +157,11 @@ void* esp_amp_rpmsg_create_msg(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t nbytes, 
  * @retval NULL             no available buffer to use / message size is larger than the maximum settings (can use esp_amp_rpmsg_get_max_size to check)
  * @retval void* ptr        successfully get the pointer to the data buffer for read/write (should be subsequently sent with nocopy version API)
  */
-void* esp_amp_rpmsg_create_msg_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t nbytes, uint16_t flags);
+void* esp_amp_rpmsg_create_message_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t nbytes, uint16_t flags);
 
 /**
- * Send the data buffer(rpmsg) allocated with `esp_amp_rpmsg_create_msg(_from_isr)` to the other side without copy. must not be called in interrupt context
- * @warning MUST BE used along with the buffer allocated by `esp_amp_rpmsg_create_msg(_from_isr)`. Otherwise, it will cause UNDEFINED BEHAVIOR!
+ * Send the data buffer(rpmsg) allocated with `esp_amp_rpmsg_create_message(_from_isr)` to the other side without copy. must not be called in interrupt context
+ * @warning MUST BE used along with the buffer allocated by `esp_amp_rpmsg_create_message(_from_isr)`. Otherwise, it will cause UNDEFINED BEHAVIOR!
  * @warning This API should ALWAYS succeed and return immediately if used correctly. Any errors reported by this API indicate the fatal error of rpmsg framework
  *
  * @param rpmsg_dev         rpmsg context
@@ -172,8 +176,8 @@ void* esp_amp_rpmsg_create_msg_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t
 int esp_amp_rpmsg_send_nocopy(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_rpmsg_ept_t* ept, uint16_t dst_addr, void* data, uint16_t data_len);
 
 /**
- * Send the data buffer(rpmsg) allocated with `esp_amp_rpmsg_create_msg(_from_isr)` to the other side without copy. must be called in interrupt context
- * @warning MUST BE used along with the buffer allocated by `esp_amp_rpmsg_create_msg(_from_isr)`. Otherwise, it will cause UNDEFINED BEHAVIOR!
+ * Send the data buffer(rpmsg) allocated with `esp_amp_rpmsg_create_message(_from_isr)` to the other side without copy. must be called in interrupt context
+ * @warning MUST BE used along with the buffer allocated by `esp_amp_rpmsg_create_message(_from_isr)`. Otherwise, it will cause UNDEFINED BEHAVIOR!
  * @warning This API should ALWAYS succeed and return immediately if used correctly. Any errors reported by this API indicate the fatal error of rpmsg framework
  *
  * @param rpmsg_dev         rpmsg context
@@ -190,7 +194,7 @@ int esp_amp_rpmsg_send_nocopy_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_r
 /**
  * Sending the data to the other side with copy, must not be called in interrupt context
  * This API will internally allocate the rpmsg data buffer, copy the data from user-provided pointer to the rpmsg data buffer, and then send it.
- * @warning MUST BE used standalone and without invoking `esp_amp_rpmsg_create_msg(_from_isr)`. Otherwise, the buffer allocated by `esp_amp_rpmsg_create_msg(_from_isr)` will never be able to be used again
+ * @warning MUST BE used standalone and without invoking `esp_amp_rpmsg_create_message(_from_isr)`. Otherwise, the buffer allocated by `esp_amp_rpmsg_create_message(_from_isr)` will never be able to be used again
  *
  * @param rpmsg_dev         rpmsg context
  * @param ept               pointer to endpoint context, indicating the identity of sender
@@ -206,7 +210,7 @@ int esp_amp_rpmsg_send(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_rpmsg_ept_t* ept,
 /**
  * Sending the data to the other side with copy, must be called in interrupt context
  * This API will internally allocate the rpmsg data buffer, copy the data from user-provided pointer to the rpmsg data buffer, and then send it.
- * @warning MUST BE used standalone and without invoking `esp_amp_rpmsg_create_msg(_from_isr)`. Otherwise, the buffer allocated by `esp_amp_rpmsg_create_msg(_from_isr)` will never be able to be used again
+ * @warning MUST BE used standalone and without invoking `esp_amp_rpmsg_create_message(_from_isr)`. Otherwise, the buffer allocated by `esp_amp_rpmsg_create_message(_from_isr)` will never be able to be used again
  *
  * @param rpmsg_dev         rpmsg context
  * @param ept               pointer to endpoint context, indicating the identity of sender
@@ -267,11 +271,39 @@ int esp_amp_rpmsg_destroy_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, void* msg_dat
  * @param queue_item_size   the maximum size of each `Virtqueue` element (the maximum size of one rpmsg(including header))
  * @param notify            whether to notify the other side after sending the data (send software interrupt)
  * @param poll              whether to use the polling mechanism on this specific core, if set to false, then `esp_amp_rpmsg_intr_enable` must be called later
+ * @param sysinfo_id        sysinfo id of shared memory allocated for rpmsg queue buffer
+ *
+ * @retval 0                successfully initialize the rpmsg framework
+ * @retval -1               failed to initialize
+ */
+int esp_amp_rpmsg_main_init_by_id(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_queue_t rpmsg_vqueue[], uint16_t queue_len, uint16_t queue_item_size, bool notify, bool poll, esp_amp_sys_info_id_t sysinfo_id);
+
+/**
+ * Initialize the rpmsg framework on main-core
+ * @param rpmsg_dev         rpmsg context, should be allocated in advance, either statically or dynamically
+ * @param queue_len         the length of `Virtqueue` (number of entries, decide how many rpmsg can be sending/using simultaneously)
+ * @param queue_item_size   the maximum size of each `Virtqueue` element (the maximum size of one rpmsg(including header))
+ * @param notify            whether to notify the other side after sending the data (send software interrupt)
+ * @param poll              whether to use the polling mechanism on this specific core, if set to false, then `esp_amp_rpmsg_intr_enable` must be called later
  *
  * @retval 0                successfully initialize the rpmsg framework
  * @retval -1               failed to initialize
  */
 int esp_amp_rpmsg_main_init(esp_amp_rpmsg_dev_t* rpmsg_dev, uint16_t queue_len, uint16_t queue_item_size, bool notify, bool poll);
+
+/**
+ * Initialize the rpmsg framework on main-core
+ * @param rpmsg_dev         rpmsg context, should be allocated in advance, either statically or dynamically
+ * @param queue_len         the length of `Virtqueue` (number of entries, decide how many rpmsg can be sending/using simultaneously)
+ * @param queue_item_size   the maximum size of each `Virtqueue` element (the maximum size of one rpmsg(including header))
+ * @param notify            whether to notify the other side after sending the data (send software interrupt)
+ * @param poll              whether to use the polling mechanism on this specific core, if set to false, then `esp_amp_rpmsg_intr_enable` must be called later
+ * @param sysinfo_id        sysinfo id of shared memory allocated for rpmsg queue buffer
+ *
+ * @retval 0                successfully initialize the rpmsg framework
+ * @retval -1               failed to initialize
+ */
+int esp_amp_rpmsg_sub_init_by_id(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_queue_t rpmsg_vqueue[], bool notify, bool poll, esp_amp_sys_info_id_t sysinfo_id);
 
 /**
  * Initialize the rpmsg framework on sub-core

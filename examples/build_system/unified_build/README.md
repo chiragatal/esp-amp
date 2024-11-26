@@ -69,7 +69,7 @@ you can change the partition name, type, subtype, offset and size to whattever y
 
 ``` shell
 # name,      type,       subtype,    offset,      size
-sub_core,    data,       0x40,       0x200000,    16K,
+sub_core,    data,       0x40,       0x200000,    64K,
 ```
 
 #### 2. call `esp_amp_add_subcore_project` to add subcore project to maincore project

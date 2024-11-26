@@ -2,7 +2,7 @@
 # SUBCORE_APP_NAME and SUBCORE_PROJECT_DIR must be defined before idf build process starts
 
 # subcore app name
-set(app_name subcore_rpmsg_send_recv)
+set(app_name subcore_software_interrupt)
 idf_build_set_property(SUBCORE_APP_NAME "${app_name}" APPEND)
 
 # subcore project dir

@@ -83,10 +83,10 @@ We also offer convenient macros to notify an event to the remote core via reserv
 ``` c
 #if IS_MAIN_CORE
 #define esp_amp_event_notify(bit_mask) \
-    esp_amp_event_notify_by_id(SYS_INFO_ID_EVENT_MAIN, bit_mask)
+    esp_amp_event_notify_by_id(SYS_INFO_RESERVED_ID_EVENT_MAIN, bit_mask)
 #else
 #define esp_amp_event_notify(bit_mask) \
-    esp_amp_event_notify_by_id(SYS_INFO_ID_EVENT_SUB, bit_mask)
+    esp_amp_event_notify_by_id(SYS_INFO_RESERVED_ID_EVENT_SUB, bit_mask)
 #endif /* IS_MAIN_CORE */
 ```
 
@@ -109,10 +109,10 @@ Following macros are provided as a more convenient way of using `esp_amp_event_w
 ``` c
 #if IS_MAIN_CORE
 #define esp_amp_event_wait(bit_mask, clear_on_exit, wait_for_all, timeout) \
-    esp_amp_event_wait_by_id(SYS_INFO_ID_EVENT_SUB, bit_mask, clear_on_exit, wait_for_all, timeout)
+    esp_amp_event_wait_by_id(SYS_INFO_RESERVED_ID_EVENT_SUB, bit_mask, clear_on_exit, wait_for_all, timeout)
 #else
 #define esp_amp_event_wait(bit_mask, clear_on_exit, wait_for_all, timeout) \
-    esp_amp_event_wait_by_id(SYS_INFO_ID_EVENT_MAIN, bit_mask, clear_on_exit, wait_for_all, timeout)
+    esp_amp_event_wait_by_id(SYS_INFO_RESERVED_ID_EVENT_MAIN, bit_mask, clear_on_exit, wait_for_all, timeout)
 #endif /* IS_MAIN_CORE */
 ```
 

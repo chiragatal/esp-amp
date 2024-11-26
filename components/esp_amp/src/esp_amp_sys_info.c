@@ -6,12 +6,14 @@
 
 #include "sdkconfig.h"
 #include "esp_attr.h"
-#include "esp_amp_priv.h"
-#include "esp_amp_sys_info.h"
+
 #if IS_MAIN_CORE
 #include "heap_memory_layout.h"
 #endif
+
+#include "esp_amp_sys_info.h"
 #include "esp_amp_log.h"
+#include "esp_amp_mem_priv.h"
 
 #define TAG "sys_info"
 
@@ -73,7 +75,7 @@ void * IRAM_ATTR esp_amp_sys_info_get(uint16_t info_id, uint16_t *size)
 }
 
 #if IS_MAIN_CORE
-void * IRAM_ATTR esp_amp_sys_info_alloc(uint16_t info_id, uint16_t size)
+void* esp_amp_sys_info_alloc(uint16_t info_id, uint16_t size)
 {
     sys_info_header_t *sys_info_entry = s_esp_amp_sys_info;
 
@@ -113,6 +115,7 @@ int esp_amp_sys_info_init(void)
     s_esp_amp_sys_info->size = 0;
     s_esp_amp_sys_info->next = NULL;
 #endif /* IS_MAIN_CORE */
+    ESP_AMP_LOGI(TAG, "ESP-AMP shared memory: addr=%p, len=%p", s_esp_amp_sys_info, (void *)ESP_AMP_SYS_INFO_BUFFER_SIZE);
     return 0;
 }
 
@@ -126,8 +129,5 @@ void esp_amp_sys_info_dump(void)
         ESP_AMP_LOGI(TAG, "0x%04x\t0x%04x\t%p", sys_info_entry->info_id, sys_info_entry->size, (void*)((uint8_t*)(s_esp_amp_sys_info) + sizeof(sys_info_header_t)));
         sys_info_entry = sys_info_entry->next;
     }
-
-    /* print buffer */
     ESP_AMP_LOGI(TAG, "==================================");
-    ESP_AMP_LOG_BUFFER_HEXDUMP(TAG, (void*)(s_esp_amp_sys_info), ESP_AMP_SYS_INFO_BUFFER_SIZE, ESP_AMP_LOG_DEBUG);
 }

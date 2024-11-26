@@ -18,8 +18,10 @@
 #endif
 
 #include "esp_amp_sys_info.h"
+#include "esp_amp_log.h"
 #include "esp_amp_sw_intr_priv.h"
-#include "esp_amp_priv.h"
+
+static const DRAM_ATTR char TAG[] = "sw_intr";
 
 extern sw_intr_handler_tbl_t sw_intr_handlers[ESP_AMP_SW_INTR_HANDLER_TABLE_LEN];
 
@@ -28,10 +30,10 @@ extern esp_amp_sw_intr_st_t *s_sw_intr_st;
 void esp_amp_sw_intr_trigger(esp_amp_sw_intr_id_t intr_id)
 {
     ESP_AMP_LOGD(TAG, "intr_id:%d, SW_INTR_ID_MAX:%d", intr_id, SW_INTR_ID_MAX);
-    ESP_AMP_ASSERT((int)intr_id <= (int)SW_INTR_ID_MAX);
+    assert((int)intr_id <= (int)SW_INTR_ID_MAX);
 
     /* must be initialized */
-    ESP_AMP_ASSERT(s_sw_intr_st != NULL);
+    assert(s_sw_intr_st != NULL);
 
 #if IS_ULP_COCPU
     ESP_AMP_LOGD(TAG, "subcore trigger sw intr");
@@ -52,7 +54,7 @@ static void IRAM_ATTR pmu_sw_intr_handler(void *args)
 
     if (PMU.hp_ext.int_st.sw) {
         PMU.hp_ext.int_clr.sw = 1; /* clear software interrupt bit */
-        ESP_AMP_DRAM_LOGD(TAG, "%s() called. Received software interrupt from LP\n", __func__);
+        ESP_AMP_DRAM_LOGD(TAG, "Received software interrupt from subcore\n");
 
         while (!atomic_compare_exchange_weak(&s_sw_intr_st->main_core_sw_intr_st, &unprocessed, 0));
         ESP_AMP_DRAM_LOGD(TAG, "sw_intr_st at %p, unprocessed=0x%x\n", s_sw_intr_st, (unsigned)unprocessed);
@@ -72,7 +74,7 @@ static void IRAM_ATTR pmu_sw_intr_handler(void *args)
             while (!atomic_compare_exchange_weak(&s_sw_intr_st->main_core_sw_intr_st, &unprocessed, 0));
         }
     } else {
-        ESP_AMP_DRAM_LOGD(TAG, "%s() called. Unknown interrupt: 0x%08x\n", __func__, PMU.hp_ext.int_st.val);
+        ESP_AMP_DRAM_LOGD(TAG, "Unknown interrupt: 0x%08x\n", PMU.hp_ext.int_st.val);
     }
 
     portYIELD_FROM_ISR(need_yield);
@@ -104,7 +106,7 @@ void LP_CORE_ISR_ATTR ulp_lp_core_lp_pmu_intr_handler(void)
     /* atomically load data from sw_intr_st to unprocessed and clear it */
     uint32_t unprocessed = 0;
     while (!atomic_compare_exchange_weak(&s_sw_intr_st->sub_core_sw_intr_st, &unprocessed, 0));
-    ESP_AMP_DRAM_LOGD(TAG, "%s: unprocessed=0x%08x\r\n", __func__, unprocessed);
+    ESP_AMP_DRAM_LOGD(TAG, "unprocessed=%p\r\n", (void*)(unprocessed));
 
     while (unprocessed) {
         for (int i = 0; i < ESP_AMP_SW_INTR_HANDLER_TABLE_LEN; i++) {
@@ -147,13 +149,13 @@ static int esp_amp_sw_intr_enable(void)
 int esp_amp_sw_intr_init(void)
 {
 #if !IS_MAIN_CORE
-    s_sw_intr_st = (esp_amp_sw_intr_st_t *) esp_amp_sys_info_get(SYS_INFO_ID_SW_INTR, NULL);
+    s_sw_intr_st = (esp_amp_sw_intr_st_t *) esp_amp_sys_info_get(SYS_INFO_RESERVED_ID_SW_INTR, NULL);
     if (s_sw_intr_st == NULL) {
         return -1;
     }
 #else
     /* initialize software interrupt status */
-    s_sw_intr_st = (esp_amp_sw_intr_st_t *) esp_amp_sys_info_alloc(SYS_INFO_ID_SW_INTR, sizeof(esp_amp_sw_intr_st_t));
+    s_sw_intr_st = (esp_amp_sw_intr_st_t *) esp_amp_sys_info_alloc(SYS_INFO_RESERVED_ID_SW_INTR, sizeof(esp_amp_sw_intr_st_t));
     if (s_sw_intr_st == NULL) {
         ESP_AMP_LOGE(TAG, "Failed to alloc sw_intr_st in sys info");
         return -1;

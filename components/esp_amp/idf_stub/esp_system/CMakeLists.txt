@@ -6,7 +6,6 @@ if(IDF_TARGET STREQUAL "esp32p4")
         "esp32p4/portasm.S"
         "esp32p4/start.S"
         "esp32p4/startup.c"
-        "esp32p4/syscalls.c"
 
         "${IDF_PATH}/components/riscv/interrupt_clic.c"
         "${IDF_PATH}/components/riscv/interrupt.c"
@@ -19,3 +18,5 @@ endif()
 idf_component_register(
     SRCS ${srcs}
     REQUIRES hal riscv esp_rom)
+
+target_link_libraries(${COMPONENT_LIB} INTERFACE m)

@@ -44,15 +44,21 @@ uint32_t esp_amp_platform_get_time_ms(void)
     return (uint32_t)(cpu_cycle_u64 / (LP_CORE_CPU_FREQ_HZ / 1000));
 }
 
+extern volatile unsigned long _bm_intr_level_count;
 void esp_amp_platform_intr_enable(void)
 {
-    asm volatile("csrs mstatus, %0" : : "r"(1 << 3));
+    if (_bm_intr_level_count == 0) {
+        /* In baremetal environment main-loop */
+        /* currently, baremetal environment doesn't support nested interrupts */
+        asm volatile("csrs mstatus, %0" : : "r"(1 << 3));
+    } /* _bm_intr_level_count > 0, in ISR context */
 }
 
 void esp_amp_platform_intr_disable(void)
 {
     asm volatile("csrc mstatus, %0" : : "r"(1 << 3));
 }
+
 #endif /* !IS_MAIN_CORE */
 
 #if IS_MAIN_CORE

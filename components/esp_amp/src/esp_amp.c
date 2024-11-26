@@ -5,7 +5,6 @@
 */
 
 #include "esp_amp.h"
-#include "esp_amp_priv.h"
 #include "esp_amp_platform.h"
 
 int esp_amp_init(void)
@@ -14,10 +13,10 @@ int esp_amp_init(void)
     esp_amp_sys_info_init();
 
     /* then init software interrupt */
-    ESP_AMP_ASSERT(esp_amp_sw_intr_init() == 0);
+    assert(esp_amp_sw_intr_init() == 0);
 
     /* then init event for synchronization */
-    ESP_AMP_ASSERT(esp_amp_event_init() == 0);
+    assert(esp_amp_event_init() == 0);
 
     return 0;
 }

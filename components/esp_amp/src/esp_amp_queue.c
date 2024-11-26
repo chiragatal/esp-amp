@@ -4,9 +4,15 @@
 * SPDX-License-Identifier: Apache-2.0
 */
 
-#include "esp_amp_priv.h"
-#include "esp_amp_queue.h"
+#include "sdkconfig.h"
 #include "esp_attr.h"
+
+#include "esp_amp_queue.h"
+#include "esp_amp_sys_info.h"
+#include "esp_amp_sw_intr.h"
+#include "esp_amp_platform.h"
+#include "esp_amp_utils_priv.h"
+
 
 int IRAM_ATTR esp_amp_queue_send_try(esp_amp_queue_t *queue, void* data, uint16_t size)
 {
@@ -26,7 +32,7 @@ int IRAM_ATTR esp_amp_queue_send_try(esp_amp_queue_t *queue, void* data, uint16_
 
     uint16_t q_idx = queue->used_index & (queue->size - 1);
     uint16_t flags = queue->desc[q_idx].flags;
-    RISCV_MEMORY_BARRIER();
+    esp_amp_platform_memory_barrier();
     if (!ESP_AMP_QUEUE_FLAG_IS_USED(queue->used_flip_counter, flags)) {
         // no free buffer slot to use, send fail, this should not happen
         return ESP_ERR_NOT_ALLOWED;
@@ -34,7 +40,7 @@ int IRAM_ATTR esp_amp_queue_send_try(esp_amp_queue_t *queue, void* data, uint16_
 
     queue->desc[q_idx].addr = (uint32_t)(data);
     queue->desc[q_idx].len = size;
-    RISCV_MEMORY_BARRIER();
+    esp_amp_platform_memory_barrier();
     // make sure the buffer address and size are set before making the slot available to use
     queue->used_index += 1;
     queue->desc[q_idx].flags ^= ESP_AMP_QUEUE_AVAILABLE_MASK(1);
@@ -66,7 +72,7 @@ int IRAM_ATTR esp_amp_queue_recv_try(esp_amp_queue_t *queue, void** buffer, uint
 
     uint16_t q_idx = queue->free_index & (queue->size - 1);
     uint16_t flags = queue->desc[q_idx].flags;
-    RISCV_MEMORY_BARRIER();
+    esp_amp_platform_memory_barrier();
 
     if (!ESP_AMP_QUEUE_FLAG_IS_AVAILABLE(queue->free_flip_counter, flags)) {
         // no available buffer slot to receive, receive fail
@@ -102,7 +108,7 @@ int IRAM_ATTR esp_amp_queue_alloc_try(esp_amp_queue_t *queue, void** buffer, uin
 
     uint16_t q_idx = queue->free_index & (queue->size - 1);
     uint16_t flags = queue->desc[q_idx].flags;
-    RISCV_MEMORY_BARRIER();
+    esp_amp_platform_memory_barrier();
     if (!ESP_AMP_QUEUE_FLAG_IS_USED(queue->free_flip_counter, flags)) {
         // no available buffer slot to alloc, alloc fail
         return ESP_ERR_NOT_FOUND;
@@ -133,7 +139,7 @@ int IRAM_ATTR esp_amp_queue_free_try(esp_amp_queue_t *queue, void* buffer)
 
     uint16_t q_idx = queue->used_index & (queue->size - 1);
     uint16_t flags = queue->desc[q_idx].flags;
-    RISCV_MEMORY_BARRIER();
+    esp_amp_platform_memory_barrier();
     if (!ESP_AMP_QUEUE_FLAG_IS_AVAILABLE(queue->used_flip_counter, flags)) {
         // no available buffer slot to place freed buffer, free fail, this should not happen
         return ESP_ERR_NOT_ALLOWED;
@@ -141,7 +147,7 @@ int IRAM_ATTR esp_amp_queue_free_try(esp_amp_queue_t *queue, void* buffer)
 
     queue->desc[q_idx].addr = (uint32_t)(buffer);
     queue->desc[q_idx].len = queue->max_item_size;
-    RISCV_MEMORY_BARRIER();
+    esp_amp_platform_memory_barrier();
     // make sure the buffer address and size are set before making the slot available to use
     queue->used_index += 1;
     queue->desc[q_idx].flags ^= ESP_AMP_QUEUE_USED_MASK(1);
@@ -173,7 +179,7 @@ int esp_amp_queue_init_buffer(esp_amp_queue_conf_t* queue_conf, uint16_t queue_l
     return ESP_OK;
 }
 
-int esp_amp_queue_create(esp_amp_queue_t* queue, esp_amp_queue_conf_t* queue_conf, esp_amp_queue_cb_t cb_func, esp_amp_queue_cb_t ntf_func, void* priv_data, bool is_master)
+int esp_amp_queue_create(esp_amp_queue_t* queue, esp_amp_queue_conf_t* queue_conf, esp_amp_queue_cb_t cb_func, void* priv_data, bool is_master)
 {
     queue->size = queue_conf->queue_size;
     queue->desc = queue_conf->queue_desc;
@@ -182,10 +188,83 @@ int esp_amp_queue_create(esp_amp_queue_t* queue, esp_amp_queue_conf_t* queue_con
     queue->free_index = 0;
     queue->used_index = 0;
     queue->max_item_size = queue_conf->max_queue_item_size;
-    queue->callback_fc = cb_func;
-    queue->notify_fc = ntf_func;
+    if (is_master) {
+        /* master can only send message */
+        queue->notify_fc = cb_func;
+        queue->callback_fc = NULL;
+    } else {
+        /* remote can only receive message */
+        queue->notify_fc = NULL;
+        queue->callback_fc = cb_func;
+    }
+
     queue->priv_data = priv_data;
     queue->master = is_master;
     return ESP_OK;
 }
 
+#if IS_MAIN_CORE
+int esp_amp_queue_main_init(esp_amp_queue_t* queue, uint16_t queue_len, uint16_t queue_item_size, esp_amp_queue_cb_t cb_func, void* priv_data, bool is_master, esp_amp_sys_info_id_t sysinfo_id)
+{
+
+    // force to ceil the queue length to power of 2
+    uint16_t aligned_queue_len = get_power_len(queue_len);
+    // force to align the queue item size with word boundary
+    uint16_t aligned_queue_item_size = get_aligned_size(queue_item_size);
+
+    if (aligned_queue_len == 0 || aligned_queue_item_size == 0) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    size_t queue_shm_size = sizeof(esp_amp_queue_conf_t) + sizeof(esp_amp_queue_desc_t) * aligned_queue_len + aligned_queue_item_size * aligned_queue_len;
+
+    uint8_t* vq_buffer = (uint8_t*)(esp_amp_sys_info_alloc(sysinfo_id, queue_shm_size));
+    if (vq_buffer == NULL) {
+        // reserve memory not enough or corresponding sys_info already occupied
+        return ESP_ERR_NO_MEM;
+    }
+
+    esp_amp_queue_conf_t* vq_confg = (esp_amp_queue_conf_t*)(vq_buffer);
+    vq_buffer += sizeof(esp_amp_queue_conf_t);
+    esp_amp_queue_desc_t* vq_desc = (esp_amp_queue_desc_t*)(vq_buffer);
+    vq_buffer += sizeof(esp_amp_queue_desc_t) * aligned_queue_len;
+    void* vq_data_buffer = (void*)(vq_buffer);
+
+    esp_amp_queue_init_buffer(vq_confg, aligned_queue_len, aligned_queue_item_size, vq_desc, vq_data_buffer);
+    esp_amp_queue_create(queue, vq_confg, cb_func, priv_data, is_master);
+
+    return ESP_OK;
+}
+#endif
+
+int esp_amp_queue_sub_init(esp_amp_queue_t* queue, esp_amp_queue_cb_t cb_func, void* priv_data, bool is_master, esp_amp_sys_info_id_t sysinfo_id)
+{
+    uint16_t queue_shm_size;
+    uint8_t* vq_buffer = esp_amp_sys_info_get(sysinfo_id, &queue_shm_size);
+
+    if (vq_buffer == NULL) {
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    esp_amp_queue_conf_t* vq_confg = (esp_amp_queue_conf_t*)(vq_buffer);
+
+    esp_amp_queue_create(queue, vq_confg, cb_func, priv_data, is_master);
+
+    return ESP_OK;
+}
+
+int esp_amp_queue_intr_enable(esp_amp_queue_t* queue)
+{
+    if (queue->master) {
+        /* should only be called on `remote-core` */
+        return ESP_ERR_NOT_SUPPORTED;
+    }
+
+    int ret = esp_amp_sw_intr_add_handler(SW_INTR_RESERVED_ID_VQUEUE, queue->callback_fc, queue->priv_data);
+
+    if (ret != 0) {
+        return ESP_ERR_NOT_FINISHED;
+    }
+
+    return ESP_OK;
+}

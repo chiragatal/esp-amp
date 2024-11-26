@@ -15,53 +15,41 @@
 
 #include "event.h"
 
-#define TAG "app_main"
+static const DRAM_ATTR char TAG[] = "sw_intr";
 
 static IRAM_ATTR int sw_intr_id0_handler_1(void *arg)
 {
-    ESP_DRAM_LOGI(TAG, "%s() called", __func__);
+    ESP_DRAM_LOGI(TAG, "sw_intr_id0_handler_1() called");
     return 0;
 }
 
 static IRAM_ATTR int sw_intr_id0_handler_2(void *arg)
 {
-    ESP_DRAM_LOGI(TAG, "%s() called", __func__);
-    return 0;
-}
-
-static IRAM_ATTR int sw_intr_id0_handler_3(void *arg)
-{
-    ESP_DRAM_LOGI(TAG, "%s() called", __func__);
-    return 0;
-}
-
-static IRAM_ATTR int sw_intr_id0_handler_4(void *arg)
-{
-    ESP_DRAM_LOGI(TAG, "%s() called", __func__);
+    ESP_DRAM_LOGI(TAG, "sw_intr_id0_handler_2() called");
     return 0;
 }
 
 static IRAM_ATTR int sw_intr_id1_handler_1(void *arg)
 {
-    ESP_DRAM_LOGI(TAG, "%s() called\n", __func__);
+    ESP_DRAM_LOGI(TAG, "sw_intr_id1_handler_1() called\n");
     return 0;
 }
 
 static IRAM_ATTR int sw_intr_id1_handler_2(void *arg)
 {
-    ESP_DRAM_LOGI(TAG, "%s() called\n", __func__);
+    ESP_DRAM_LOGI(TAG, "sw_intr_id1_handler_2() called\n");
     return 0;
 }
 
 static IRAM_ATTR int sw_intr_id2_handler_1(void *arg)
 {
-    ESP_DRAM_LOGI(TAG, "%s() called\n", __func__);
+    ESP_DRAM_LOGI(TAG, "sw_intr_id2_handler_1() called\n");
     return 0;
 }
 
 static IRAM_ATTR int sw_intr_id2_handler_2(void *arg)
 {
-    ESP_DRAM_LOGI(TAG, "%s() called\n", __func__);
+    ESP_DRAM_LOGI(TAG, "sw_intr_id2_handler_2() called\n");
     return 0;
 }
 
@@ -87,7 +75,7 @@ void app_main(void)
 
     /* wait for link up */
     assert((esp_amp_event_wait(EVENT_SUBCORE_READY, true, true, 10000) & EVENT_SUBCORE_READY) == EVENT_SUBCORE_READY);
-    ESP_LOGI(TAG, "LP core linked up");
+    ESP_LOGI(TAG, "subcore linked up");
 
     while (1) {
         ESP_LOGI(TAG, "running...");

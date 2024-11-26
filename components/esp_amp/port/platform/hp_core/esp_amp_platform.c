@@ -1,10 +1,10 @@
-#include "sdkconfig.h"
 /*
 * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
 *
 * SPDX-License-Identifier: Apache-2.0
 */
 
+#include "sdkconfig.h"
 #include "esp_amp_arch.h"
 #include "esp_amp_platform.h"
 #include "rom/ets_sys.h"
@@ -20,7 +20,11 @@
 #define HP_CORE_CPU_FREQ_HZ 360000000
 #endif
 
-uint32_t s_appcpu_entry;
+#if IS_MAIN_CORE
+uint32_t hp_subcore_boot_addr;
+#endif
+
+#if !IS_MAIN_CORE
 void esp_amp_platform_delay_us(uint32_t time)
 {
     esp_rom_delay_us(time);
@@ -39,6 +43,24 @@ uint32_t esp_amp_platform_get_time_ms(void)
     return (uint32_t)(cpu_cycle_u64 / (HP_CORE_CPU_FREQ_HZ / 1000));
 }
 
+extern volatile unsigned long _bm_intr_level_count;
+void esp_amp_platform_intr_enable(void)
+{
+    if (_bm_intr_level_count == 0) {
+        /* In baremetal environment main-loop */
+        /* currently, baremetal environment doesn't support nested interrupts */
+        asm volatile("csrs mstatus, %0" : : "r"(1 << 3));
+    } /* _bm_intr_level_count > 0, in ISR context */
+}
+
+void esp_amp_platform_intr_disable(void)
+{
+    asm volatile("csrc mstatus, %0" : : "r"(1 << 3));
+}
+
+#endif
+
+#if IS_MAIN_CORE
 int esp_amp_platform_start_subcore(void)
 {
     cache_ll_writeback_all(CACHE_LL_LEVEL_INT_MEM, CACHE_TYPE_DATA, CACHE_LL_ID_ALL);
@@ -61,23 +83,17 @@ int esp_amp_platform_start_subcore(void)
     key_mgr_hal_set_key_usage(ESP_KEY_MGR_XTS_AES_128_KEY, ESP_KEY_MGR_USE_EFUSE_KEY);
 #endif
 
-    ets_set_appcpu_boot_addr((uint32_t)s_appcpu_entry);
+    if (hp_subcore_boot_addr == 0) {
+        return -1;
+    }
+
+    ets_set_appcpu_boot_addr((uint32_t)hp_subcore_boot_addr);
     return 0;
 }
-
 
 void esp_amp_platform_stop_subcore(void)
 {
 // #warning "esp_amp_platform_stop_subcore() not implemented"
     return;
 }
-
-void esp_amp_platform_intr_enable(void)
-{
-    asm volatile("csrs mstatus, %0" : : "r"(1 << 3));
-}
-
-void esp_amp_platform_intr_disable(void)
-{
-    asm volatile("csrc mstatus, %0" : : "r"(1 << 3));
-}
+#endif

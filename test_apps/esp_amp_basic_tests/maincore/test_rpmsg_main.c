@@ -61,7 +61,7 @@ void ept1_task_ctx(void* arg)
     TEST_ASSERT_EQUAL(pdTRUE, xQueueReceive(pars->q_handler, &data, portMAX_DELAY));
     printf("EPT1: Message from Sub core ==> %s\n", (char*)(data));
     TEST_ASSERT_EQUAL(0, esp_amp_rpmsg_destroy(pars->rpmsg_dev, data));
-    data = esp_amp_rpmsg_create_msg(pars->rpmsg_dev, 32, ESP_AMP_RPMSG_DATA_DEFAULT);
+    data = esp_amp_rpmsg_create_message(pars->rpmsg_dev, 32, ESP_AMP_RPMSG_DATA_DEFAULT);
     TEST_ASSERT_NOT_NULL(data);
     snprintf(data, 30, "Rsp from EPT1: 1");
     TEST_ASSERT_EQUAL(0, esp_amp_rpmsg_send_nocopy(pars->rpmsg_dev, pars->rpmsg_ept, 0, data, 30));
@@ -92,7 +92,7 @@ void ept2_task_ctx(void* arg)
         }
 
         algo_counter = !algo_counter;
-        int* data = (int*)(esp_amp_rpmsg_create_msg(pars->rpmsg_dev, sizeof(int) * 2, ESP_AMP_RPMSG_DATA_DEFAULT));
+        int* data = (int*)(esp_amp_rpmsg_create_message(pars->rpmsg_dev, sizeof(int) * 2, ESP_AMP_RPMSG_DATA_DEFAULT));
         TEST_ASSERT_NOT_NULL(data);
         data[0] = a;
         data[1] = b;
@@ -163,9 +163,9 @@ TEST_CASE("rpmsg transport layer test between main-core and sub-core", "[esp_amp
     };
 
     /* create endpoint and attach callback */
-    TEST_ASSERT_EQUAL_HEX32(pars0.rpmsg_ept, esp_amp_rpmsg_create_ept(pars0.rpmsg_dev, 0, rpmsg_test_ept_isr_ctx, (void*)&pars0, pars0.rpmsg_ept));
-    TEST_ASSERT_EQUAL_HEX32(pars1.rpmsg_ept, esp_amp_rpmsg_create_ept(pars1.rpmsg_dev, 1, rpmsg_test_ept_isr_ctx, (void*)&pars1, pars1.rpmsg_ept));
-    TEST_ASSERT_EQUAL_HEX32(pars2.rpmsg_ept, esp_amp_rpmsg_create_ept(pars2.rpmsg_dev, 2, rpmsg_test_ept_isr_ctx, (void*)&pars2, pars2.rpmsg_ept));
+    TEST_ASSERT_EQUAL_HEX32(pars0.rpmsg_ept, esp_amp_rpmsg_create_endpoint(pars0.rpmsg_dev, 0, rpmsg_test_ept_isr_ctx, (void*)&pars0, pars0.rpmsg_ept));
+    TEST_ASSERT_EQUAL_HEX32(pars1.rpmsg_ept, esp_amp_rpmsg_create_endpoint(pars1.rpmsg_dev, 1, rpmsg_test_ept_isr_ctx, (void*)&pars1, pars1.rpmsg_ept));
+    TEST_ASSERT_EQUAL_HEX32(pars2.rpmsg_ept, esp_amp_rpmsg_create_endpoint(pars2.rpmsg_dev, 2, rpmsg_test_ept_isr_ctx, (void*)&pars2, pars2.rpmsg_ept));
     TEST_ASSERT_EQUAL_INT(0, esp_amp_rpmsg_intr_enable(rpmsg_dev));
 
     TEST_ASSERT_NOT_EQUAL(pdFAIL, xTaskCreate(ept0_task_ctx, "ept0", 2048, (void*)&pars0, tskIDLE_PRIORITY, NULL));

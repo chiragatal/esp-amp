@@ -8,7 +8,6 @@
 #include "string.h"
 #include "esp_attr.h"
 #include "esp_amp.h"
-#include "esp_amp_priv.h"
 #include "esp_amp_sw_intr.h"
 #include "esp_amp_platform.h"
 #include "esp_amp_log.h"
@@ -43,7 +42,7 @@ typedef struct {
  * Event Table
  *
  * @note not for event notify. event notify simply writes to event bits
- * event table is used by ISR when SW_INTR_ID_EVENT is triggered
+ * event table is used by ISR when SW_INTR_RESERVED_ID_EVENT is triggered
  * event table records the mapping between event handle and event bits
  */
 #define ESP_AMP_EVENT_TABLE_LEN (CONFIG_ESP_AMP_EVENT_TABLE_LEN + 1)
@@ -83,12 +82,12 @@ uint32_t IRAM_ATTR esp_amp_event_notify_by_id(uint16_t sysinfo_id, uint32_t bit_
 {
     uint16_t event_bits_size = 0;
     atomic_int *event_bits = (atomic_int *)esp_amp_sys_info_get(sysinfo_id, &event_bits_size);
-    ESP_AMP_ASSERT(event_bits != NULL && event_bits_size == sizeof(atomic_int));
+    assert(event_bits != NULL && event_bits_size == sizeof(atomic_int));
 
     uint32_t ret_val = atomic_fetch_or_explicit(event_bits, bit_mask, memory_order_seq_cst);
 
     ESP_AMP_DRAM_LOGD(TAG, "notify event(%p): %p", event_bits, (void *)bit_mask);
-    esp_amp_sw_intr_trigger(SW_INTR_ID_EVENT);
+    esp_amp_sw_intr_trigger(SW_INTR_RESERVED_ID_EVENT);
     return ret_val;
 }
 
@@ -104,11 +103,11 @@ uint32_t esp_amp_event_wait_by_id(uint16_t sysinfo_id, uint32_t bit_mask, bool c
     }
     portEXIT_CRITICAL(&event_lock);
 
-    ESP_AMP_ASSERT(event_handle != NULL);
+    assert(event_handle != NULL);
 
     uint32_t timeout_tick = portMAX_DELAY;
     if (timeout != UINT_MAX) {
-        timeout = pdMS_TO_TICKS(timeout);
+        timeout_tick = pdMS_TO_TICKS(timeout);
     }
     EventBits_t bits = xEventGroupWaitBits(event_handle, bit_mask, clear_on_exit, wait_for_all, timeout_tick);
     return bits;
@@ -126,7 +125,7 @@ uint32_t esp_amp_event_clear_by_id(uint16_t sysinfo_id, uint32_t bit_mask)
     }
     portEXIT_CRITICAL(&event_lock);
 
-    ESP_AMP_ASSERT(event_handle != NULL);
+    assert(event_handle != NULL);
 
     return xEventGroupClearBits(event_handle, bit_mask);
 }
@@ -139,7 +138,7 @@ int esp_amp_event_bind_handle(uint16_t sysinfo_id, void *event_handle)
 
     uint16_t event_bits_size = 0;
     atomic_int *event_bits = esp_amp_sys_info_get(sysinfo_id, &event_bits_size);
-    ESP_AMP_ASSERT(event_bits != NULL && event_bits_size == sizeof(atomic_int));
+    assert(event_bits != NULL && event_bits_size == sizeof(atomic_int));
 
     int idx_dup = ESP_AMP_EVENT_TABLE_LEN;
     int idx_free = ESP_AMP_EVENT_TABLE_LEN;
@@ -215,14 +214,14 @@ int esp_amp_event_create(uint16_t sysinfo_id)
 int esp_amp_event_init(void)
 {
 #if IS_MAIN_CORE
-    ESP_AMP_ASSERT(esp_amp_event_create(SYS_INFO_ID_EVENT_MAIN) == 0);
-    ESP_AMP_ASSERT(esp_amp_event_create(SYS_INFO_ID_EVENT_SUB) == 0);
+    assert(esp_amp_event_create(SYS_INFO_RESERVED_ID_EVENT_MAIN) == 0);
+    assert(esp_amp_event_create(SYS_INFO_RESERVED_ID_EVENT_SUB) == 0);
 #else
     uint16_t event_bits_size = 0;
-    atomic_int *main_core_event_bits = (atomic_int *) esp_amp_sys_info_get(SYS_INFO_ID_EVENT_MAIN, &event_bits_size);
-    ESP_AMP_ASSERT(main_core_event_bits != NULL && event_bits_size == sizeof(atomic_int));
-    atomic_int *sub_core_event_bits = (atomic_int *) esp_amp_sys_info_get(SYS_INFO_ID_EVENT_SUB, &event_bits_size);
-    ESP_AMP_ASSERT(sub_core_event_bits != NULL && event_bits_size == sizeof(atomic_int));
+    atomic_int *main_core_event_bits = (atomic_int *) esp_amp_sys_info_get(SYS_INFO_RESERVED_ID_EVENT_MAIN, &event_bits_size);
+    assert(main_core_event_bits != NULL && event_bits_size == sizeof(atomic_int));
+    atomic_int *sub_core_event_bits = (atomic_int *) esp_amp_sys_info_get(SYS_INFO_RESERVED_ID_EVENT_SUB, &event_bits_size);
+    assert(sub_core_event_bits != NULL && event_bits_size == sizeof(atomic_int));
 #endif /* IS_MAIN_CORE */
 
     /* init event group table */
@@ -231,15 +230,15 @@ int esp_amp_event_init(void)
     portEXIT_CRITICAL(&event_lock);
 
     EventGroupHandle_t default_event_handle = xEventGroupCreateStatic(&default_event_storage);
-    ESP_AMP_ASSERT(default_event_handle != NULL);
+    assert(default_event_handle != NULL);
 
 #if IS_MAIN_CORE
-    esp_amp_event_bind_handle(SYS_INFO_ID_EVENT_SUB, default_event_handle);
+    esp_amp_event_bind_handle(SYS_INFO_RESERVED_ID_EVENT_SUB, default_event_handle);
 #else
-    esp_amp_event_bind_handle(SYS_INFO_ID_EVENT_MAIN, default_event_handle);
+    esp_amp_event_bind_handle(SYS_INFO_RESERVED_ID_EVENT_MAIN, default_event_handle);
 #endif /* IS_MAIN_CORE */
 
     /* register sw interrupt */
-    ESP_AMP_ASSERT(esp_amp_sw_intr_add_handler(SW_INTR_ID_EVENT, os_env_event_isr, NULL) == 0);
+    assert(esp_amp_sw_intr_add_handler(SW_INTR_RESERVED_ID_EVENT, os_env_event_isr, NULL) == 0);
     return 0;
 }

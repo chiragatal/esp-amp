@@ -4,7 +4,7 @@ endif()
 
 ## set bootloader build components
 set(COMPONENTS bootloader esptool_py esp_hw_support esp_system freertos hal partition_table soc bootloader_support log spi_flash micro-ecc main efuse esp_system newlib CACHE STRING "" FORCE)
-set(common_req log esp_rom esp_common esp_hw_support hal CACHE STRING "" FORCE)
+set(common_req log esp_rom esp_common esp_hw_support esp_system hal CACHE STRING "" FORCE)
 
 list(APPEND EXTRA_COMPONENT_DIRS
     ${IDF_PATH}/components/bootloader/subproject/components
@@ -20,11 +20,14 @@ if(IDF_TARGET STREQUAL "esp32c6")
     set(TOOLCHAIN_FLAG_SUFFIX "esp-lp-rv32")
 elseif(IDF_TARGET STREQUAL "esp32p4")
     set(TOOLCHAIN_FLAG_SUFFIX "esp-rv32")
+else()
+    message(FATAL_ERROR "${IDF_TARGET} is not supported by esp-amp!")
 endif()
 
 set(TOOLCHAIN_FLAG ${ESP_AMP_PATH}/components/esp_amp/cmake/${IDF_TARGET}/toolchain-${TOOLCHAIN_FLAG_SUFFIX}.cmake CACHE PATH "" FORCE)
 set(CMAKE_TOOLCHAIN_FILE ${TOOLCHAIN_FLAG} CACHE PATH "" FORCE)
 set(BOOTLOADER_BUILD 1 CACHE BOOL "" FORCE)
+set(NON_OS_BUILD 1 CACHE BOOL "" FORCE)
 include("${IDF_PATH}/tools/cmake/project.cmake")
 
 ## set build properties
@@ -44,6 +47,12 @@ idf_build_set_property(LINK_OPTIONS "-Wl,--no-warn-rwx-segments" APPEND)
 idf_build_set_property(LINK_OPTIONS "-Wl,--gc-sections" APPEND)
 
 # wrapper functions for printf
+idf_build_set_property(COMPILE_OPTIONS "-fno-builtin-printf" APPEND)
+idf_build_set_property(COMPILE_OPTIONS "-fno-builtin-putc" APPEND)
+idf_build_set_property(COMPILE_OPTIONS "-fno-builtin-fprintf" APPEND)
+idf_build_set_property(COMPILE_OPTIONS "-fno-builtin-vprintf" APPEND)
+idf_build_set_property(COMPILE_OPTIONS "-fno-builtin-puts" APPEND)
+
 idf_build_set_property(LINK_OPTIONS "-Wl,--wrap=printf" APPEND)
 idf_build_set_property(LINK_OPTIONS "-Wl,--wrap=putc" APPEND)
 idf_build_set_property(LINK_OPTIONS "-Wl,--wrap=fprintf" APPEND)
@@ -53,9 +62,10 @@ idf_build_set_property(LINK_OPTIONS "-Wl,--wrap=puts" APPEND)
 # esp-amp related flags
 idf_build_set_property(COMPILE_DEFINITIONS "-DIS_ENV_BM" APPEND)
 idf_build_set_property(COMPILE_DEFINITIONS "BOOTLOADER_BUILD=1" APPEND)
+idf_build_set_property(COMPILE_DEFINITIONS "NON_OS_BUILD=1" APPEND)
 
 idf_build_set_property(C_COMPILE_OPTIONS "-Wno-pointer-sign" APPEND)
-idf_build_set_property(COMPILE_OPTIONS "-Wno-discarded-qualifiers" APPEND)
+idf_build_set_property(C_COMPILE_OPTIONS "-Wno-discarded-qualifiers" APPEND)
 idf_build_set_property(COMPILE_OPTIONS "-Wno-implicit-fallthrough" APPEND)
 idf_build_set_property(COMPILE_OPTIONS "-Wno-error=implicit-function-declaration" APPEND)
 
@@ -70,6 +80,8 @@ if(IDF_TARGET STREQUAL "esp32c6")
 endif()
 
 if(IDF_TARGET STREQUAL "esp32p4")
+    # TODO: stddef.h is missing in pmu_struct.h. need this to make compiler happy
+    idf_build_set_property(COMPILE_DEFINITIONS "-Doffsetof=__builtin_offsetof" APPEND)
     idf_build_set_property(LINK_OPTIONS "-Wl,--defsym=__wrap_printf=esp_rom_printf" APPEND)
 endif()
 

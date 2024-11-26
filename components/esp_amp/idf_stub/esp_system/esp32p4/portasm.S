@@ -1,7 +1,9 @@
-/* empty stub for baremetal environment */
-/* mstatus as retval can affect behavior of interrupt handler */
-/* might need to clear a0 */
-/* rtos_save_pie, rtos_save_fpu not supported */
+/*
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #include "sdkconfig.h"
 #include "riscv/rvruntime-frames.h"
 
@@ -12,10 +14,20 @@
 /* Bit to clear in mstatus to disable the FPU */
 #define CSR_MSTATUS_FPU_DISABLE     (3 << 13)
 
+.macro add_intr_counter imm=1
+    la t0, _bm_intr_level_count
+    lw t1, 0(t0)
+    addi t1, t1, \imm
+    sw t1, 0(t0)
+.endm
+
 .section .data
 .global fpu_ctx
+.global _bm_intr_level_count
 .align 3
 fpu_ctx: .space 160
+_bm_intr_level_count:
+    .word 0
 
 
 
@@ -128,20 +140,23 @@ fpu_ctx: .space 160
     .global fpu_ctx
     .type rtos_int_enter, @function
 rtos_int_enter:
+    add_intr_counter 1
     #if CONFIG_ESP_AMP_SUBCORE_ENABLE_HW_FPU
-    #if CONFIG_ESP_AMP_SUBCORE_USE_FPU_ISR
+    #if CONFIG_ESP_AMP_SUBCORE_ENABLE_HW_FPU_IN_ISR
     fpu_save_regs t0
-    #endif
+    #else
     fpu_disable t0
+    #endif
     #endif
     ret
 
     .global rtos_int_exit
     .type rtos_int_exit, @function
 rtos_int_exit:
+    add_intr_counter -1
     #if CONFIG_ESP_AMP_SUBCORE_ENABLE_HW_FPU
     fpu_enable t0
-    #if CONFIG_ESP_AMP_SUBCORE_USE_FPU_ISR
+    #if CONFIG_ESP_AMP_SUBCORE_ENABLE_HW_FPU_IN_ISR
     fpu_restore_regs t0
     #endif
     #endif

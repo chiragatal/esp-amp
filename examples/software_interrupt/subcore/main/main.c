@@ -14,37 +14,37 @@
 
 static int sw_intr_id0_handler_1(void *arg)
 {
-    printf("%s() called\r\n", __func__);
+    printf("sw_intr_id0_handler_1() called\r\n");
     return 0;
 }
 
 static int sw_intr_id0_handler_2(void *arg)
 {
-    printf("%s() called\r\n", __func__);
+    printf("sw_intr_id0_handler_2() called\r\n");
     return 0;
 }
 
 static int sw_intr_id1_handler_1(void *arg)
 {
-    printf("%s() called\r\n", __func__);
+    printf("sw_intr_id1_handler_1() called\r\n");
     return 0;
 }
 
 static int sw_intr_id1_handler_2(void *arg)
 {
-    printf("%s() called\r\n", __func__);
+    printf("sw_intr_id1_handler_2() called\r\n");
     return 0;
 }
 
 static int sw_intr_id2_handler_1(void *arg)
 {
-    printf("%s() called\r\n", __func__);
+    printf("sw_intr_id2_handler_1() called\r\n");
     return 0;
 }
 
 static int sw_intr_id2_handler_2(void *arg)
 {
-    printf("%s() called\r\n", __func__);
+    printf("sw_intr_id2_handler_2() called\r\n");
     return 0;
 }
 

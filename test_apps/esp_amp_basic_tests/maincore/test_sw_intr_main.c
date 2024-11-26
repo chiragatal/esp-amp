@@ -15,30 +15,32 @@ extern const uint8_t subcore_sw_intr_bin_end[]   asm("_binary_subcore_test_sw_in
 
 static uint8_t main_sw_intr_record[4];
 
+static const DRAM_ATTR char TAG[] = "test_sw_intr";
+
 static IRAM_ATTR int sw_intr_id0_handler(void *arg)
 {
-    ESP_DRAM_LOGI("", "%s() called", __func__);
+    ESP_DRAM_LOGI(TAG, "sw_intr_id0_handler() called");
     main_sw_intr_record[0]++;
     return 0;
 }
 
 static IRAM_ATTR int sw_intr_id1_handler(void *arg)
 {
-    ESP_DRAM_LOGI("", "%s() called", __func__);
+    ESP_DRAM_LOGI(TAG, "sw_intr_id1_handler() called");
     main_sw_intr_record[1]++;
     return 0;
 }
 
 static IRAM_ATTR int sw_intr_id2_handler(void *arg)
 {
-    ESP_DRAM_LOGI("", "%s() called", __func__);
+    ESP_DRAM_LOGI("", "sw_intr_id2_handler() called");
     main_sw_intr_record[2]++;
     return 0;
 }
 
 static IRAM_ATTR int sw_intr_id3_handler(void *arg)
 {
-    ESP_DRAM_LOGI("", "%s() called", __func__);
+    ESP_DRAM_LOGI("", "sw_intr_id3_handler() called");
     main_sw_intr_record[3]++;
     return 0;
 }

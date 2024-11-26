@@ -55,6 +55,13 @@ function(esp_amp_add_subcore_project subcore_app_name subcore_project_dir)
         set(partition_subtype ${__SUBTYPE})
 
         if(NOT CMAKE_BUILD_EARLY_EXPANSION)
+            # Verify whether the subcore partition has sufficient space to accommodate the subcore binary
+            partition_table_add_check_size_target(app_check_subcore_size
+                DEPENDS ${subcore_app_name}
+                BINARY_PATH "${SUBCORE_BUILD_DIR}/${subcore_app_name}.bin"
+                PARTITION_TYPE ${partition_type} PARTITION_SUBTYPE ${partition_subtype})
+            add_dependencies(app app_check_subcore_size)
+
             add_dependencies(${subcore_app_name} partition_table_bin)
             add_dependencies(flash ${subcore_app_name})
             partition_table_get_partition_info(partition "--partition-type ${partition_type} --partition-subtype ${partition_subtype}" "name")

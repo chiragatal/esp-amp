@@ -33,6 +33,7 @@
 
 #else
 
+#include <stdio.h>
 #include "sdkconfig.h"
 #include "esp_rom_sys.h"
 #include "esp_rom_uart.h"
@@ -55,11 +56,11 @@ typedef enum {
 #define AMP_LOG_LOCAL_LEVEL ( CONFIG_LOG_DEFAULT_LEVEL )
 
 #define ESP_AMP_LOG_LEVEL(level, tag, format, ...) do {                     \
-        if (level==ESP_AMP_LOG_ERROR )          { esp_rom_printf("E %s: " format "\r\n", tag, ##__VA_ARGS__); } \
-        else if (level==ESP_AMP_LOG_WARN )      { esp_rom_printf("W %s: " format "\r\n", tag, ##__VA_ARGS__); } \
-        else if (level==ESP_AMP_LOG_DEBUG )     { esp_rom_printf("D %s: " format "\r\n", tag, ##__VA_ARGS__); } \
-        else if (level==ESP_AMP_LOG_VERBOSE )   { esp_rom_printf("V %s: " format "\r\n", tag, ##__VA_ARGS__); } \
-        else                                { esp_rom_printf("I %s: " format "\r\n", tag, ##__VA_ARGS__); } \
+        if (level==ESP_AMP_LOG_ERROR )          { printf("E %s: " format "\r\n", tag, ##__VA_ARGS__); } \
+        else if (level==ESP_AMP_LOG_WARN )      { printf("W %s: " format "\r\n", tag, ##__VA_ARGS__); } \
+        else if (level==ESP_AMP_LOG_DEBUG )     { printf("D %s: " format "\r\n", tag, ##__VA_ARGS__); } \
+        else if (level==ESP_AMP_LOG_VERBOSE )   { printf("V %s: " format "\r\n", tag, ##__VA_ARGS__); } \
+        else                                { printf("I %s: " format "\r\n", tag, ##__VA_ARGS__); } \
     } while(0)
 
 #define ESP_AMP_LOG_LEVEL_LOCAL(level, tag, format, ...) do {               \
@@ -93,11 +94,11 @@ static inline void esp_amp_log_buffer_hex_internal(const char *tag, const void *
     const char *p = (const char *)buffer;
     for (int i = 0; i < buff_len; i++) {
         if (i && !(i % BYTES_PER_LINE)) {
-            esp_rom_printf("\n");
+            printf("\n");
         }
-        esp_rom_printf("%02X ", (*(p + i) & 0xff));
+        printf("%02X ", (*(p + i) & 0xff));
     }
-    esp_rom_printf("\n");
+    printf("\n");
 }
 
 #define ESP_AMP_PLATFORM_LOG_BUFFER_HEXDUMP( tag, buffer, buff_len, level ) \

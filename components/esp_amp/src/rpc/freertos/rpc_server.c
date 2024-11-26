@@ -75,7 +75,7 @@ esp_amp_rpc_status_t esp_amp_rpc_server_init(esp_amp_rpmsg_dev_t *rpmsg_dev, uin
     esp_amp_rpc_server.server_addr = server_addr;
 
     /* register endpoint */
-    if (esp_amp_rpmsg_create_ept(esp_amp_rpc_server.rpmsg_dev, server_addr, esp_amp_rpc_server_isr, NULL, &esp_amp_rpc_server.rpmsg_ept) == NULL) {
+    if (esp_amp_rpmsg_create_endpoint(esp_amp_rpc_server.rpmsg_dev, server_addr, esp_amp_rpc_server_isr, NULL, &esp_amp_rpc_server.rpmsg_ept) == NULL) {
         ESP_AMP_LOGE(TAG, "Failed to create ept");
         return ESP_AMP_RPC_STATUS_FAILED;
     }
@@ -178,7 +178,7 @@ esp_amp_rpc_status_t esp_amp_rpc_server_deinit(void)
 
     if (ret == ESP_AMP_RPC_STATUS_OK) {
         if (esp_amp_rpc_server.rpmsg_dev) {
-            esp_amp_rpmsg_del_ept(esp_amp_rpc_server.rpmsg_dev, esp_amp_rpc_server.server_addr);
+            esp_amp_rpmsg_del_endpoint(esp_amp_rpc_server.rpmsg_dev, esp_amp_rpc_server.server_addr);
             esp_amp_rpc_server.rpmsg_dev = NULL;
         }
         if (esp_amp_rpc_server.event) {
@@ -222,7 +222,7 @@ static void esp_amp_rpc_server_task(void *args)
 
         /* alloc tx_buf (pkt_out) */
         if (ret != -1) {
-            pkt_out = (esp_amp_rpc_pkt_t *)esp_amp_rpmsg_create_msg(esp_amp_rpc_server.rpmsg_dev, rpmsg_len, ESP_AMP_RPMSG_DATA_DEFAULT);
+            pkt_out = (esp_amp_rpc_pkt_t *)esp_amp_rpmsg_create_message(esp_amp_rpc_server.rpmsg_dev, rpmsg_len, ESP_AMP_RPMSG_DATA_DEFAULT);
             if (pkt_out == NULL) {
                 ESP_AMP_LOGE(TAG, "Failed to alloc tx buf for pkt_out");
                 ret = -1;

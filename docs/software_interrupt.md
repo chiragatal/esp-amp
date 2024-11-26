@@ -34,11 +34,13 @@ Software interrupt APIs are common across maincore and subcore. To register a so
 The following example demonstrates how to register and unregister a software interrupt handler on maincore (IDF FreeRTOS environment).
 
 ``` c
+static const DRAM_ATTR char TAG[] = "test_sw_intr";
+
 // software interrupt handler to be registered
 static IRAM_ATTR int sw_intr_id0_handler_1(void *arg)
 {
     (void)arg;
-    ESP_DRAM_LOGI(TAG, "%s() called", __func__);
+    ESP_DRAM_LOGI(TAG, "sw_intr_id0_handler_1() called");
     return 0;
 }
 

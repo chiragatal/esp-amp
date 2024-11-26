@@ -22,7 +22,7 @@ int ept0_cb(void* msg_data, uint16_t data_len, uint16_t src_addr, void* rx_cb_da
     printf("[EPT%d]: %s\r\n", (int)(src_addr), (char*)msg_data);
     esp_amp_rpmsg_destroy_from_isr(&rpmsg_dev, msg_data);
     static int count = 0;
-    void* msg = esp_amp_rpmsg_create_msg_from_isr(&rpmsg_dev, 30, ESP_AMP_RPMSG_DATA_DEFAULT);
+    void* msg = esp_amp_rpmsg_create_message_from_isr(&rpmsg_dev, 30, ESP_AMP_RPMSG_DATA_DEFAULT);
     if (msg != NULL) {
         snprintf(msg, 30, "Extra Msg: %d", count++);
         assert(esp_amp_rpmsg_send_nocopy_from_isr(&rpmsg_dev, &rpmsg_ept[0], 0, msg, 30) == 0);
@@ -42,7 +42,7 @@ int ept1_cb(void* msg_data, uint16_t data_len, uint16_t src_addr, void* rx_cb_da
     printf("Result: %d + %d = %d\r\n", a, b, c);
     esp_amp_rpmsg_destroy_from_isr(&rpmsg_dev, msg_data);
 
-    void* msg = esp_amp_rpmsg_create_msg_from_isr(&rpmsg_dev, sizeof(int), ESP_AMP_RPMSG_DATA_DEFAULT);
+    void* msg = esp_amp_rpmsg_create_message_from_isr(&rpmsg_dev, sizeof(int), ESP_AMP_RPMSG_DATA_DEFAULT);
     if (msg != NULL) {
         *((int*)(msg)) = c;
         assert(esp_amp_rpmsg_send_nocopy_from_isr(&rpmsg_dev, &rpmsg_ept[1], src_addr, msg, 1) == 0);
@@ -63,7 +63,7 @@ int ept2_cb(void* msg_data, uint16_t data_len, uint16_t src_addr, void* rx_cb_da
     printf("Result: %d x %d = %d\r\n", a, b, c);
     esp_amp_rpmsg_destroy_from_isr(&rpmsg_dev, msg_data);
 
-    void* msg = esp_amp_rpmsg_create_msg_from_isr(&rpmsg_dev, sizeof(int), ESP_AMP_RPMSG_DATA_DEFAULT);
+    void* msg = esp_amp_rpmsg_create_message_from_isr(&rpmsg_dev, sizeof(int), ESP_AMP_RPMSG_DATA_DEFAULT);
     if (msg != NULL) {
         *((int*)(msg)) = c;
         assert(esp_amp_rpmsg_send_nocopy_from_isr(&rpmsg_dev, &rpmsg_ept[2], src_addr, msg, 1) == 0);
@@ -79,7 +79,7 @@ void send_normal_msg(void)
 {
     static int count = 0;
     static bool flip = true;
-    void *msg = esp_amp_rpmsg_create_msg(&rpmsg_dev, 48, ESP_AMP_RPMSG_DATA_DEFAULT);
+    void *msg = esp_amp_rpmsg_create_message(&rpmsg_dev, 48, ESP_AMP_RPMSG_DATA_DEFAULT);
     if (msg != NULL) {
         snprintf(msg, 48, "Normal Msg: %d", count++);
         assert(esp_amp_rpmsg_send_nocopy(&rpmsg_dev, &rpmsg_ept[0], flip ? 0 : 1, msg, 48) == 0);
@@ -109,9 +109,9 @@ int main(void)
     assert(esp_amp_rpmsg_sub_init(&rpmsg_dev, true, true) == 0);
 #endif /* CONFIG_EXAMPLE_RPMSG_ENABLE_INTERRUPT_ON_SUBCORE */
 
-    esp_amp_rpmsg_create_ept(&rpmsg_dev, 0, ept0_cb, NULL, &rpmsg_ept[0]);
-    esp_amp_rpmsg_create_ept(&rpmsg_dev, 1, ept1_cb, NULL, &rpmsg_ept[1]);
-    esp_amp_rpmsg_create_ept(&rpmsg_dev, 2, ept2_cb, NULL, &rpmsg_ept[2]);
+    esp_amp_rpmsg_create_endpoint(&rpmsg_dev, 0, ept0_cb, NULL, &rpmsg_ept[0]);
+    esp_amp_rpmsg_create_endpoint(&rpmsg_dev, 1, ept1_cb, NULL, &rpmsg_ept[1]);
+    esp_amp_rpmsg_create_endpoint(&rpmsg_dev, 2, ept2_cb, NULL, &rpmsg_ept[2]);
 
     /* notify link up with main core */
     esp_amp_event_notify(EVENT_SUBCORE_READY);

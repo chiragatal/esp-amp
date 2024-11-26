@@ -11,22 +11,21 @@
 #include "esp_attr.h"
 #include "event.h"
 #include "sys_info.h"
+#include "esp_amp_queue.h"
 #include "esp_amp_platform.h"
 
 int notify_func(void* args)
 {
-    esp_amp_sw_intr_trigger(SW_INTR_ID_0);
+    esp_amp_sw_intr_trigger(SW_INTR_RESERVED_ID_VQUEUE);
     return ESP_OK;
 }
 
 int main(void)
 {
     assert(esp_amp_init() == 0);
-    esp_amp_queue_conf_t* vq_conf = (esp_amp_queue_conf_t*)(esp_amp_sys_info_get(SYS_INFO_ID_VQUEUE_CONF, NULL));
-    assert(vq_conf != NULL);
-
     esp_amp_queue_t vq;
-    assert(esp_amp_queue_create(&vq, vq_conf, NULL, notify_func, NULL, true) == ESP_OK);
+
+    assert(esp_amp_queue_sub_init(&vq, notify_func, NULL, true, SYS_INFO_ID_VQUEUE_EXAMPLE) == 0);
 
     esp_amp_event_notify(EVENT_SUBCORE_READY);
     int idx = 0;

@@ -10,6 +10,10 @@
 #include "esp_amp_arch.h"
 #include "esp_amp_platform_log.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Get cpu core id by reading register
  *
@@ -62,6 +66,14 @@ void esp_amp_platform_intr_disable(void);
  */
 void esp_amp_platform_intr_enable(void);
 
+/**
+ * Memory barrier
+ */
+static inline void esp_amp_platform_memory_barrier(void)
+{
+    esp_amp_arch_memory_barrier();
+}
+
 #if IS_MAIN_CORE
 
 /**
@@ -80,8 +92,6 @@ void esp_amp_platform_stop_subcore(void);
 
 #endif /* IS_MAIN_CORE */
 
-
-#if IS_ULP_COCPU
-#undef assert
-#define assert(_stat) if(!(_stat)) { printf("%s:%d assertion failed\r\n", __FILE__, __LINE__); asm volatile ("ebreak\n"); }
+#ifdef __cplusplus
+}
 #endif

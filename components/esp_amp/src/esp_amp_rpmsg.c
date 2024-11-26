@@ -7,22 +7,15 @@
 
 #include "esp_attr.h"
 
-#if !IS_ENV_BM
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_heap_caps.h"
-#endif
-
+#include "esp_amp_env.h"
+#include "esp_amp_utils_priv.h"
 #include "esp_amp_rpmsg.h"
 #include "esp_amp_platform.h"
 #include "esp_amp_sys_info.h"
 #include "esp_amp_sw_intr.h"
 
-#if !IS_ENV_BM
-static portMUX_TYPE rpmsg_mutex = portMUX_INITIALIZER_UNLOCKED;
-#endif
 
-static void __esp_amp_rpmsg_extend_ept_list(esp_amp_rpmsg_ept_t** ept_head, esp_amp_rpmsg_ept_t* new_ept)
+static void __esp_amp_rpmsg_extend_endpoint_list(esp_amp_rpmsg_ept_t** ept_head, esp_amp_rpmsg_ept_t* new_ept)
 {
     if (*ept_head == NULL) {
         *ept_head = new_ept;
@@ -40,7 +33,7 @@ static void __esp_amp_rpmsg_extend_ept_list(esp_amp_rpmsg_ept_t** ept_head, esp_
 * However, re-entrant safe is not guaranteed, which must be token into account and implemented in the higher-level
 * user MUST NOT invoke this function directly
 */
-static esp_amp_rpmsg_ept_t* IRAM_ATTR __esp_amp_rpmsg_search_ept(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr)
+static esp_amp_rpmsg_ept_t* IRAM_ATTR __esp_amp_rpmsg_search_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr)
 {
     // empty endpoint list
     if (rpmsg_device->ept_list == NULL) {
@@ -63,23 +56,15 @@ static esp_amp_rpmsg_ept_t* IRAM_ATTR __esp_amp_rpmsg_search_ept(esp_amp_rpmsg_d
 * It MUST BE CALLED ONLY FROM <<FreeRTOS Task context>> after initialization if rpmsg interrupt is enabled
 * <<< During initialization or When rpmsg interrupt is not enabled >>>, both Task/BM context can invoke this function
 */
-esp_amp_rpmsg_ept_t* esp_amp_rpmsg_search_ept(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr)
+esp_amp_rpmsg_ept_t* esp_amp_rpmsg_search_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr)
 {
     esp_amp_rpmsg_ept_t* ept_ptr;
 
-#if !IS_ENV_BM
-    taskENTER_CRITICAL(&rpmsg_mutex);
-#else
-    esp_amp_platform_intr_disable();
-#endif
+    esp_amp_env_enter_critical();
 
-    ept_ptr = __esp_amp_rpmsg_search_ept(rpmsg_device, ept_addr);
+    ept_ptr = __esp_amp_rpmsg_search_endpoint(rpmsg_device, ept_addr);
 
-#if !IS_ENV_BM
-    taskEXIT_CRITICAL(&rpmsg_mutex);
-#else
-    esp_amp_platform_intr_enable();
-#endif
+    esp_amp_env_exit_critical();
 
     return ept_ptr;
 }
@@ -88,39 +73,27 @@ esp_amp_rpmsg_ept_t* esp_amp_rpmsg_search_ept(esp_amp_rpmsg_dev_t* rpmsg_device,
 * This function MUST BE CALLED ONLY FROM <<FreeRTOS Task context>> after initialization if rpmsg interrupt is enabled
 * <<< During initialization or When rpmsg interrupt is not enabled >>>, both Task/BM context can invoke this function
 */
-esp_amp_rpmsg_ept_t* esp_amp_rpmsg_create_ept(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr, esp_amp_ept_cb_t ept_rx_cb, void* ept_rx_cb_data, esp_amp_rpmsg_ept_t* ept_ctx)
+esp_amp_rpmsg_ept_t* esp_amp_rpmsg_create_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr, esp_amp_ept_cb_t ept_rx_cb, void* ept_rx_cb_data, esp_amp_rpmsg_ept_t* ept_ctx)
 {
     if (ept_ctx == NULL) {
         // invalid endpoint context
         return NULL;
     }
 
-#if !IS_ENV_BM
-    taskENTER_CRITICAL(&rpmsg_mutex);
-#else
-    esp_amp_platform_intr_disable();
-#endif
+    esp_amp_env_enter_critical();
 
-    if (__esp_amp_rpmsg_search_ept(rpmsg_device, ept_addr) != NULL) {
+    if (__esp_amp_rpmsg_search_endpoint(rpmsg_device, ept_addr) != NULL) {
         // endpoint address already exist!
-#if !IS_ENV_BM
-        taskEXIT_CRITICAL(&rpmsg_mutex);
-#else
-        esp_amp_platform_intr_enable();
-#endif
+        esp_amp_env_exit_critical();
         return NULL;
     }
 
     ept_ctx->addr = ept_addr;
     ept_ctx->rx_cb = ept_rx_cb;
     ept_ctx->rx_cb_data = ept_rx_cb_data;
-    __esp_amp_rpmsg_extend_ept_list(&(rpmsg_device->ept_list), ept_ctx);
+    __esp_amp_rpmsg_extend_endpoint_list(&(rpmsg_device->ept_list), ept_ctx);
 
-#if !IS_ENV_BM
-    taskEXIT_CRITICAL(&rpmsg_mutex);
-#else
-    esp_amp_platform_intr_enable();
-#endif
+    esp_amp_env_exit_critical();
 
     return ept_ctx;
 }
@@ -129,14 +102,10 @@ esp_amp_rpmsg_ept_t* esp_amp_rpmsg_create_ept(esp_amp_rpmsg_dev_t* rpmsg_device,
 * This function MUST BE CALLED ONLY FROM <<FreeRTOS Task context>> after initialization if rpmsg interrupt is enabled
 * <<< During initialization or When rpmsg interrupt is not enabled >>>, both Task/BM context can invoke this function
 */
-esp_amp_rpmsg_ept_t* esp_amp_rpmsg_del_ept(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr)
+esp_amp_rpmsg_ept_t* esp_amp_rpmsg_del_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr)
 {
 
-#if !IS_ENV_BM
-    taskENTER_CRITICAL(&rpmsg_mutex);
-#else
-    esp_amp_platform_intr_disable();
-#endif
+    esp_amp_env_enter_critical();
 
     esp_amp_rpmsg_ept_t* cur_ept = rpmsg_device->ept_list;
     esp_amp_rpmsg_ept_t* prev_ept = NULL;
@@ -151,11 +120,7 @@ esp_amp_rpmsg_ept_t* esp_amp_rpmsg_del_ept(esp_amp_rpmsg_dev_t* rpmsg_device, ui
 
     if (cur_ept == NULL) {
         // endpoint address not exist!
-#if !IS_ENV_BM
-        taskEXIT_CRITICAL(&rpmsg_mutex);
-#else
-        esp_amp_platform_intr_enable();
-#endif
+        esp_amp_env_exit_critical();
         return NULL;
     }
 
@@ -167,11 +132,7 @@ esp_amp_rpmsg_ept_t* esp_amp_rpmsg_del_ept(esp_amp_rpmsg_dev_t* rpmsg_device, ui
     }
     cur_ept->next_ept = NULL;
 
-#if !IS_ENV_BM
-    taskEXIT_CRITICAL(&rpmsg_mutex);
-#else
-    esp_amp_platform_intr_enable();
-#endif
+    esp_amp_env_exit_critical();
 
     return cur_ept;
 }
@@ -180,41 +141,29 @@ esp_amp_rpmsg_ept_t* esp_amp_rpmsg_del_ept(esp_amp_rpmsg_dev_t* rpmsg_device, ui
 * This function MUST BE CALLED ONLY FROM <<FreeRTOS Task context>> after initialization if rpmsg interrupt is enabled
 * <<< During initialization or When rpmsg interrupt is not enabled >>>, both Task/BM context can invoke this function
 */
-esp_amp_rpmsg_ept_t* esp_amp_rpmsg_rebind_ept(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr, esp_amp_ept_cb_t ept_rx_cb, void* ept_rx_cb_data)
+esp_amp_rpmsg_ept_t* esp_amp_rpmsg_rebind_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr, esp_amp_ept_cb_t ept_rx_cb, void* ept_rx_cb_data)
 {
 
-#if !IS_ENV_BM
-    taskENTER_CRITICAL(&rpmsg_mutex);
-#else
-    esp_amp_platform_intr_disable();
-#endif
+    esp_amp_env_enter_critical();
 
-    esp_amp_rpmsg_ept_t* ept_ptr = __esp_amp_rpmsg_search_ept(rpmsg_device, ept_addr);
+    esp_amp_rpmsg_ept_t* ept_ptr = __esp_amp_rpmsg_search_endpoint(rpmsg_device, ept_addr);
     if (ept_ptr == NULL) {
         // endpoint address not exist!
-#if !IS_ENV_BM
-        taskEXIT_CRITICAL(&rpmsg_mutex);
-#else
-        esp_amp_platform_intr_enable();
-#endif
+        esp_amp_env_exit_critical();
         return NULL;
     }
 
     ept_ptr->rx_cb = ept_rx_cb;
     ept_ptr->rx_cb_data = ept_rx_cb_data;
 
-#if !IS_ENV_BM
-    taskEXIT_CRITICAL(&rpmsg_mutex);
-#else
-    esp_amp_platform_intr_enable();
-#endif
+    esp_amp_env_exit_critical();
 
     return ept_ptr;
 }
 
 static int IRAM_ATTR __esp_amp_rpmsg_dispatcher(esp_amp_rpmsg_t* rpmsg, esp_amp_rpmsg_dev_t* rpmsg_dev)
 {
-    esp_amp_rpmsg_ept_t* ept = __esp_amp_rpmsg_search_ept(rpmsg_dev, rpmsg->msg_head.dst_addr);
+    esp_amp_rpmsg_ept_t* ept = __esp_amp_rpmsg_search_endpoint(rpmsg_dev, rpmsg->msg_head.dst_addr);
     if (ept == NULL) {
         // can't find endpoint, ignore and return
         return -1;
@@ -255,16 +204,16 @@ static int IRAM_ATTR __esp_amp_rpmsg_rx_callback(void* data)
 
 static int IRAM_ATTR __esp_amp_rpmsg_tx_notify(void* data)
 {
-    esp_amp_sw_intr_trigger(SW_INTR_ID_VQUEUE_RECV);
+    esp_amp_sw_intr_trigger(SW_INTR_RESERVED_ID_VQUEUE);
     return 0;
 }
 
 int esp_amp_rpmsg_intr_enable(esp_amp_rpmsg_dev_t* rpmsg_dev)
 {
-    return esp_amp_sw_intr_add_handler(SW_INTR_ID_VQUEUE_RECV, rpmsg_dev->rx_queue->callback_fc, rpmsg_dev);
+    return esp_amp_queue_intr_enable(rpmsg_dev->rx_queue);
 }
 
-static void __esp_amp_rpmsg_init(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_queue_t vqueue[], esp_amp_queue_cb_t notify_cb, esp_amp_queue_cb_t itr_cb)
+static void __esp_amp_rpmsg_dev_init(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_queue_t vqueue[])
 {
     rpmsg_dev->tx_queue = &vqueue[0];
     rpmsg_dev->rx_queue = &vqueue[1];
@@ -273,77 +222,89 @@ static void __esp_amp_rpmsg_init(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_queue_t
     rpmsg_dev->queue_ops.q_tx_alloc = esp_amp_queue_alloc_try;
     rpmsg_dev->queue_ops.q_rx = esp_amp_queue_recv_try;
     rpmsg_dev->queue_ops.q_rx_free = esp_amp_queue_free_try;
-    rpmsg_dev->tx_queue->notify_fc = notify_cb;
-    rpmsg_dev->rx_queue->callback_fc = itr_cb;
 }
 
 #if IS_MAIN_CORE
-static int __esp_amp_queue_main_init(esp_amp_queue_t queue[], uint16_t queue_len, uint16_t queue_item_size)
+int esp_amp_rpmsg_main_init_by_id(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_queue_t rpmsg_vqueue[], uint16_t queue_len, uint16_t queue_item_size, bool notify, bool poll, esp_amp_sys_info_id_t sysinfo_id)
 {
-    if (!((queue_len > 1) && (((queue_len - 1) & queue_len) == 0))) {
-        // queue_len must be power of 2
+    // force to ceil the queue length to power of 2
+    uint16_t aligned_queue_len = get_power_len(queue_len);
+    // force to align the queue item size with word boundary
+    uint16_t aligned_queue_item_size = get_aligned_size(queue_item_size);
+
+    if (aligned_queue_len == 0 || aligned_queue_item_size == 0) {
         return -1;
     }
 
-    size_t queue_shm_size = sizeof(esp_amp_queue_conf_t) + sizeof(esp_amp_queue_desc_t) * queue_len;
+    esp_amp_queue_cb_t tx_notify = notify ? __esp_amp_rpmsg_tx_notify : NULL;
+    esp_amp_queue_cb_t rx_callback = poll ? NULL : __esp_amp_rpmsg_rx_callback;
+
+    size_t queue_shm_size = 2 * (sizeof(esp_amp_queue_conf_t) + sizeof(esp_amp_queue_desc_t) * aligned_queue_len + aligned_queue_item_size * aligned_queue_len);
     // alloc fixed-size buffer for TX/RX Virtqueue
-    uint8_t* vq_buffer = (uint8_t*)(esp_amp_sys_info_alloc(SYS_INFO_ID_VQUEUE_BUFFER, 2 * queue_len * queue_item_size));
+    uint8_t* vq_buffer = (uint8_t*)(esp_amp_sys_info_alloc(sysinfo_id, queue_shm_size));
     if (vq_buffer == NULL) {
-        // reserve memory not enough!
+        // reserve memory not enough or corresponding sys_info already occupied
         return -1;
     }
-    esp_amp_queue_conf_t* vq_tx_confg = esp_amp_sys_info_alloc(SYS_INFO_ID_VQUEUE_TX, queue_shm_size);
-    esp_amp_queue_conf_t* vq_rx_confg = esp_amp_sys_info_alloc(SYS_INFO_ID_VQUEUE_RX, queue_shm_size);
+
+    esp_amp_queue_conf_t* vq_tx_confg = (esp_amp_queue_conf_t*)(vq_buffer);
+    vq_buffer += sizeof(esp_amp_queue_conf_t);
+    esp_amp_queue_conf_t* vq_rx_confg = (esp_amp_queue_conf_t*)(vq_buffer);
+    vq_buffer += sizeof(esp_amp_queue_conf_t);
+    esp_amp_queue_desc_t* vq_tx_desc = (esp_amp_queue_desc_t*)(vq_buffer);
+    vq_buffer += sizeof(esp_amp_queue_desc_t) * aligned_queue_len;
+    esp_amp_queue_desc_t* vq_rx_desc = (esp_amp_queue_desc_t*)(vq_buffer);
+    vq_buffer += sizeof(esp_amp_queue_desc_t) * aligned_queue_len;
+    void* vq_tx_data_buffer = (void*)(vq_buffer);
+    vq_buffer += aligned_queue_item_size * aligned_queue_len;
+    void* vq_rx_data_buffer = (void*)(vq_buffer);
 
     // initialize the queue config
-    int ret = 0;
-    ret |= esp_amp_queue_init_buffer(vq_tx_confg, queue_len, queue_item_size, (esp_amp_queue_desc_t*)((uint8_t*)(vq_tx_confg) + sizeof(esp_amp_queue_conf_t)), vq_buffer);
-    ret |= esp_amp_queue_init_buffer(vq_rx_confg, queue_len, queue_item_size, (esp_amp_queue_desc_t*)((uint8_t*)(vq_rx_confg) + sizeof(esp_amp_queue_conf_t)), vq_buffer + queue_len * queue_item_size);
-    ret |= esp_amp_queue_create(&queue[0], vq_tx_confg, NULL, NULL, NULL, true);
-    ret |= esp_amp_queue_create(&queue[1], vq_rx_confg, NULL, NULL, NULL, false);
+    esp_amp_queue_init_buffer(vq_tx_confg, aligned_queue_len, aligned_queue_item_size, vq_tx_desc, vq_tx_data_buffer);
+    esp_amp_queue_init_buffer(vq_rx_confg, aligned_queue_len, aligned_queue_item_size, vq_rx_desc, vq_rx_data_buffer);
     // initialize the local queue structure
-    return ret;
-}
-#else
-static int __esp_amp_queue_sub_init(esp_amp_queue_t queue[])
-{
-    uint16_t queue_shm_size;
-    // Note: the configuration is different from the queue_main_init, since the main TX is sub RX; main RX is sub TX;
-    esp_amp_queue_conf_t* vq_tx_confg = esp_amp_sys_info_get(SYS_INFO_ID_VQUEUE_RX, &queue_shm_size);
-    esp_amp_queue_conf_t* vq_rx_confg = esp_amp_sys_info_get(SYS_INFO_ID_VQUEUE_TX, &queue_shm_size);
-    // initialize the local queue structure
-    int ret = 0;
-    ret |= esp_amp_queue_create(&queue[0], vq_tx_confg, NULL, NULL, NULL, true);
-    ret |= esp_amp_queue_create(&queue[1], vq_rx_confg, NULL, NULL, NULL, false);
-    return ret;
-}
-#endif
+    esp_amp_queue_create(&rpmsg_vqueue[0], vq_tx_confg, tx_notify, (void*)(rpmsg_dev), true);
+    esp_amp_queue_create(&rpmsg_vqueue[1], vq_rx_confg, rx_callback, (void*)(rpmsg_dev), false);
 
-#if IS_MAIN_CORE
+    __esp_amp_rpmsg_dev_init(rpmsg_dev, rpmsg_vqueue);
+
+    return 0;
+}
+
 int esp_amp_rpmsg_main_init(esp_amp_rpmsg_dev_t* rpmsg_dev, uint16_t queue_len, uint16_t queue_item_size, bool notify, bool poll)
 {
     static esp_amp_queue_t vqueue[2];
-    if (__esp_amp_queue_main_init(vqueue, queue_len, queue_item_size) != 0) {
+    return esp_amp_rpmsg_main_init_by_id(rpmsg_dev, vqueue, queue_len, queue_item_size, notify, poll, SYS_INFO_RESERVED_ID_VQUEUE);
+}
+#else
+int esp_amp_rpmsg_sub_init_by_id(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_queue_t rpmsg_vqueue[], bool notify, bool poll, esp_amp_sys_info_id_t sysinfo_id)
+{
+    uint16_t queue_shm_size;
+    uint8_t* vq_buffer = esp_amp_sys_info_get(sysinfo_id, &queue_shm_size);
+
+    if (vq_buffer == NULL) {
         return -1;
     }
+
     esp_amp_queue_cb_t tx_notify = notify ? __esp_amp_rpmsg_tx_notify : NULL;
     esp_amp_queue_cb_t rx_callback = poll ? NULL : __esp_amp_rpmsg_rx_callback;
-    __esp_amp_rpmsg_init(rpmsg_dev, vqueue, tx_notify, rx_callback);
+
+    // Note: the configuration is different from the queue_main_init, since the main TX is sub RX; main RX is sub TX;
+    esp_amp_queue_conf_t* vq_tx_confg = (esp_amp_queue_conf_t*)(vq_buffer + sizeof(esp_amp_queue_conf_t));
+    esp_amp_queue_conf_t* vq_rx_confg = (esp_amp_queue_conf_t*)(vq_buffer);
+    // initialize the local queue structure
+    esp_amp_queue_create(&rpmsg_vqueue[0], vq_tx_confg, tx_notify, (void*)(rpmsg_dev), true);
+    esp_amp_queue_create(&rpmsg_vqueue[1], vq_rx_confg, rx_callback, (void*)(rpmsg_dev), false);
+
+    __esp_amp_rpmsg_dev_init(rpmsg_dev, rpmsg_vqueue);
 
     return 0;
 }
-#else
+
 int esp_amp_rpmsg_sub_init(esp_amp_rpmsg_dev_t* rpmsg_dev, bool notify, bool poll)
 {
     static esp_amp_queue_t vqueue[2];
-    if (__esp_amp_queue_sub_init(vqueue) != 0) {
-        return -1;
-    }
-    esp_amp_queue_cb_t tx_notify = notify ? __esp_amp_rpmsg_tx_notify : NULL;
-    esp_amp_queue_cb_t rx_callback = poll ? NULL : __esp_amp_rpmsg_rx_callback;
-    __esp_amp_rpmsg_init(rpmsg_dev, vqueue, tx_notify, rx_callback);
-
-    return 0;
+    return esp_amp_rpmsg_sub_init_by_id(rpmsg_dev, vqueue, notify, poll, SYS_INFO_RESERVED_ID_VQUEUE);
 }
 #endif
 
@@ -351,32 +312,21 @@ int esp_amp_rpmsg_sub_init(esp_amp_rpmsg_dev_t* rpmsg_dev, bool notify, bool pol
 * Note: This function is re-entrant safe and MUST BE CALLED ONLY FROM:
 * 1. FreeRTOS Task context
 * 2. BM context with rpmsg interrupt disabled
-* 3. BM context with rpmsg interrupt enabled but `esp_amp_rpmsg_create_msg_from_isr` will never be called
+* 3. BM context with rpmsg interrupt enabled but `esp_amp_rpmsg_create_message_from_isr` will never be called
 */
-void* esp_amp_rpmsg_create_msg(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t nbytes, uint16_t flags)
+void* esp_amp_rpmsg_create_message(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t nbytes, uint16_t flags)
 {
     uint32_t rpmsg_size = nbytes + offsetof(esp_amp_rpmsg_t, msg_data);
     esp_amp_rpmsg_t* rpmsg;
     if (rpmsg_size >= (uint32_t)(1) << 16) {
         return NULL;
     }
-#if !IS_ENV_BM
-    taskENTER_CRITICAL(&rpmsg_mutex);
-#else
-    esp_amp_platform_intr_disable();
-    // should add support for disabling interrupt under BM environment,
-    // so that this function can also be called along with `esp_amp_rpmsg_create_msg_from_isr` under BM environment
-#endif
+
+    esp_amp_env_enter_critical();
 
     int ret = rpmsg_dev->queue_ops.q_tx_alloc(rpmsg_dev->tx_queue, (void**)(&rpmsg), rpmsg_size);
 
-#if !IS_ENV_BM
-    taskEXIT_CRITICAL(&rpmsg_mutex);
-#else
-    esp_amp_platform_intr_enable();
-    // should add support for disabling interrupt under BM environment,
-    // so that this function can also be called along with `esp_amp_rpmsg_create_msg_from_isr` under BM environment
-#endif
+    esp_amp_env_exit_critical();
 
     if (rpmsg == NULL || ret == -1) {
         return NULL;
@@ -392,9 +342,9 @@ void* esp_amp_rpmsg_create_msg(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t nbytes, 
 /*
 * Note: This function MUST BE CALLED ONLY FROM
 * 1. FreeRTOS ISR context
-* 2. ISR context in BM environment but `esp_amp_rpmsg_create_msg` will never be called
+* 2. ISR context in BM environment but `esp_amp_rpmsg_create_message` will never be called
 */
-void* IRAM_ATTR esp_amp_rpmsg_create_msg_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t nbytes, uint16_t flags)
+void* IRAM_ATTR esp_amp_rpmsg_create_message_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t nbytes, uint16_t flags)
 {
     uint32_t rpmsg_size = nbytes + offsetof(esp_amp_rpmsg_t, msg_data);
     esp_amp_rpmsg_t* rpmsg;
@@ -428,7 +378,7 @@ int esp_amp_rpmsg_send(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_rpmsg_ept_t* ept,
         return -1;
     }
 
-    void* buffer = esp_amp_rpmsg_create_msg(rpmsg_dev, data_len, ESP_AMP_RPMSG_DATA_DEFAULT);
+    void* buffer = esp_amp_rpmsg_create_message(rpmsg_dev, data_len, ESP_AMP_RPMSG_DATA_DEFAULT);
 
     if (buffer == NULL) {
         return -1;
@@ -452,7 +402,7 @@ int IRAM_ATTR esp_amp_rpmsg_send_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_am
         return -1;
     }
 
-    void* buffer = esp_amp_rpmsg_create_msg_from_isr(rpmsg_dev, data_len, ESP_AMP_RPMSG_DATA_DEFAULT);
+    void* buffer = esp_amp_rpmsg_create_message_from_isr(rpmsg_dev, data_len, ESP_AMP_RPMSG_DATA_DEFAULT);
 
     if (buffer == NULL) {
         return -1;
@@ -479,23 +429,11 @@ int esp_amp_rpmsg_send_nocopy(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_rpmsg_ept_
     rpmsg->msg_head.dst_addr = dst_addr;
     rpmsg->msg_head.src_addr = ept->addr;
 
-#if !IS_ENV_BM
-    taskENTER_CRITICAL(&rpmsg_mutex);
-#else
-    esp_amp_platform_intr_disable();
-    // should add support for disabling interrupt under BM environment,
-    // so that this function can also be called along with `esp_amp_rpmsg_send_nocopy_from_isr` under BM environment
-#endif
+    esp_amp_env_enter_critical();
 
     int ret = rpmsg_dev->queue_ops.q_tx(rpmsg_dev->tx_queue, rpmsg, rpmsg_dev->tx_queue->max_item_size);
 
-#if !IS_ENV_BM
-    taskEXIT_CRITICAL(&rpmsg_mutex);
-#else
-    esp_amp_platform_intr_enable();
-    // should add support for disabling interrupt under BM environment,
-    // so that this function can also be called along with `esp_amp_rpmsg_send_nocopy_from_isr` under BM environment
-#endif
+    esp_amp_env_exit_critical();
 
     return ret;
 }
@@ -526,22 +464,11 @@ int esp_amp_rpmsg_destroy(esp_amp_rpmsg_dev_t* rpmsg_dev, void* msg_data)
 {
     esp_amp_rpmsg_t* rpmsg = (esp_amp_rpmsg_t*)((uint8_t*)(msg_data) - offsetof(esp_amp_rpmsg_t, msg_data));
 
-#if !IS_ENV_BM
-    taskENTER_CRITICAL(&rpmsg_mutex);
-#else
-    esp_amp_platform_intr_disable();
-    // should add support for disabling interrupt under BM environment,
-    // so that this function can also be called along with `esp_amp_rpmsg_destroy_from_isr` under BM environment
-#endif
+    esp_amp_env_enter_critical();
 
     int ret = rpmsg_dev->queue_ops.q_rx_free(rpmsg_dev->rx_queue, rpmsg);
-#if !IS_ENV_BM
-    taskEXIT_CRITICAL(&rpmsg_mutex);
-#else
-    esp_amp_platform_intr_enable();
-    // should add support for disabling interrupt under BM environment,
-    // so that this function can also be called along with `esp_amp_rpmsg_destroy_from_isr` under BM environment
-#endif
+
+    esp_amp_env_exit_critical();
 
     return ret;
 }

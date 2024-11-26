@@ -6,7 +6,6 @@
 
 #include "stddef.h"
 #include "esp_attr.h"
-#include "esp_amp_priv.h"
 #include "esp_amp_sys_info.h"
 #include "esp_amp_sw_intr.h"
 #include "esp_amp_platform.h"
@@ -30,15 +29,15 @@ typedef struct {
     atomic_int *event_bits;
 } esp_amp_event_t;
 
-uint32_t IRAM_ATTR esp_amp_event_notify_by_id(uint16_t sysinfo_id, uint32_t bit_mask)
+uint32_t esp_amp_event_notify_by_id(uint16_t sysinfo_id, uint32_t bit_mask)
 {
     uint16_t event_bits_size = 0;
     atomic_int *event_bits = (atomic_int *)esp_amp_sys_info_get(sysinfo_id, &event_bits_size);
-    ESP_AMP_ASSERT(event_bits != NULL && event_bits_size == sizeof(atomic_int));
+    assert(event_bits != NULL && event_bits_size == sizeof(atomic_int));
 
     uint32_t ret_val = atomic_fetch_or_explicit(event_bits, bit_mask, memory_order_seq_cst);
     ESP_AMP_LOGD(TAG, "notify event(%p) %p", event_bits, (void *)bit_mask);
-    esp_amp_sw_intr_trigger(SW_INTR_ID_EVENT);
+    esp_amp_sw_intr_trigger(SW_INTR_RESERVED_ID_EVENT);
     return ret_val;
 }
 
@@ -46,7 +45,7 @@ uint32_t IRAM_ATTR esp_amp_event_notify_by_id(uint16_t sysinfo_id, uint32_t bit_
  * wait for all: Yes
  * clear on exit: Yes
  */
-uint32_t IRAM_ATTR esp_amp_event_wait_by_id(uint16_t sysinfo_id, uint32_t bit_mask, bool clear_on_exit, bool wait_for_all, uint32_t timeout_ms)
+uint32_t esp_amp_event_wait_by_id(uint16_t sysinfo_id, uint32_t bit_mask, bool clear_on_exit, bool wait_for_all, uint32_t timeout_ms)
 {
     int ret = 0;
     uint32_t cur_time = esp_amp_platform_get_time_ms();
@@ -58,7 +57,7 @@ uint32_t IRAM_ATTR esp_amp_event_wait_by_id(uint16_t sysinfo_id, uint32_t bit_ma
 
     uint16_t event_bits_size = 0;
     atomic_int *event_bits = esp_amp_sys_info_get(sysinfo_id, &event_bits_size);
-    ESP_AMP_ASSERT(event_bits != NULL && event_bits_size == sizeof(atomic_int));
+    assert(event_bits != NULL && event_bits_size == sizeof(atomic_int));
 
     if (wait_for_all) { /* wait for all */
         while (!atomic_compare_exchange_weak(event_bits, &expected, desired)) {
@@ -107,7 +106,7 @@ uint32_t esp_amp_event_clear_by_id(uint16_t sysinfo_id, uint32_t bit_mask)
 {
     uint16_t event_bits_size = 0;
     atomic_int *event_bits = esp_amp_sys_info_get(sysinfo_id, &event_bits_size);
-    ESP_AMP_ASSERT(event_bits != NULL && event_bits_size == sizeof(atomic_int));
+    assert(event_bits != NULL && event_bits_size == sizeof(atomic_int));
 
     int expected = 0;
     int desired = 0;
@@ -120,8 +119,8 @@ uint32_t esp_amp_event_clear_by_id(uint16_t sysinfo_id, uint32_t bit_mask)
 int esp_amp_event_init(void)
 {
     /* get event bit */
-    atomic_int * main_core_event_bits = (atomic_int *) esp_amp_sys_info_get(SYS_INFO_ID_EVENT_MAIN, NULL);
-    atomic_int * sub_core_event_bits = (atomic_int *) esp_amp_sys_info_get(SYS_INFO_ID_EVENT_SUB, NULL);
+    atomic_int * main_core_event_bits = (atomic_int *) esp_amp_sys_info_get(SYS_INFO_RESERVED_ID_EVENT_MAIN, NULL);
+    atomic_int * sub_core_event_bits = (atomic_int *) esp_amp_sys_info_get(SYS_INFO_RESERVED_ID_EVENT_SUB, NULL);
 
     if (main_core_event_bits == NULL || sub_core_event_bits == NULL) {
         ESP_AMP_LOGE(TAG, "Failed to init default event");

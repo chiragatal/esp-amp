@@ -42,7 +42,7 @@ void ept1_task_ctx(void* arg)
         xQueueReceive(msgQueue, &data, portMAX_DELAY);
         printf("EPT1: Message from Sub core ==> %s\n", (char*)(data));
         esp_amp_rpmsg_destroy(&rpmsg_dev, data);
-        data = esp_amp_rpmsg_create_msg(&rpmsg_dev, 32, ESP_AMP_RPMSG_DATA_DEFAULT);
+        data = esp_amp_rpmsg_create_message(&rpmsg_dev, 32, ESP_AMP_RPMSG_DATA_DEFAULT);
         if (data != NULL) {
             snprintf(data, 30, "Rsp from EPT1: %d", count++);
             assert(esp_amp_rpmsg_send_nocopy(&rpmsg_dev, &rpmsg_ept[1], 0, data, 30) == 0);
@@ -73,7 +73,7 @@ void ept2_task_ctx(void* arg)
             printf("Generating %d x %d = %d\n", a, b, c);
         }
         algo_counter = !algo_counter;
-        int* data = (int*)(esp_amp_rpmsg_create_msg(&rpmsg_dev, sizeof(int) * 2, ESP_AMP_RPMSG_DATA_DEFAULT));
+        int* data = (int*)(esp_amp_rpmsg_create_message(&rpmsg_dev, sizeof(int) * 2, ESP_AMP_RPMSG_DATA_DEFAULT));
         if (data != NULL) {
             data[0] = a;
             data[1] = b;
@@ -128,9 +128,9 @@ void app_main(void)
     QueueHandle_t ept1_msg_queue = xQueueCreate(32, sizeof(void*));
     QueueHandle_t ept2_msg_queue = xQueueCreate(32, sizeof(void*));
     assert(ret == 0);
-    assert(esp_amp_rpmsg_create_ept(&rpmsg_dev, 0, ept_isr_ctx, (void*)(ept0_msg_queue), &rpmsg_ept[0]) != NULL);
-    assert(esp_amp_rpmsg_create_ept(&rpmsg_dev, 1, ept_isr_ctx, (void*)(ept1_msg_queue), &rpmsg_ept[1]) != NULL);
-    assert(esp_amp_rpmsg_create_ept(&rpmsg_dev, 2, ept_isr_ctx, (void*)(ept2_msg_queue), &rpmsg_ept[2]) != NULL);
+    assert(esp_amp_rpmsg_create_endpoint(&rpmsg_dev, 0, ept_isr_ctx, (void*)(ept0_msg_queue), &rpmsg_ept[0]) != NULL);
+    assert(esp_amp_rpmsg_create_endpoint(&rpmsg_dev, 1, ept_isr_ctx, (void*)(ept1_msg_queue), &rpmsg_ept[1]) != NULL);
+    assert(esp_amp_rpmsg_create_endpoint(&rpmsg_dev, 2, ept_isr_ctx, (void*)(ept2_msg_queue), &rpmsg_ept[2]) != NULL);
 
 #if EXAMPLE_RPMSG_ENABLE_INTERRUPT_ON_MAINCORE
     esp_amp_rpmsg_intr_enable(&rpmsg_dev);

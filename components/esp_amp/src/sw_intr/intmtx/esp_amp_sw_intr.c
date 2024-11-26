@@ -12,14 +12,16 @@
 #include "esp_rom_sys.h"
 
 #if IS_MAIN_CORE
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "soc/interrupts.h"
 #include "esp_intr_alloc.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #endif
 
+static const DRAM_ATTR char TAG[] = "sw_intr";
+
+#include "esp_amp_log.h"
 #include "esp_amp_sw_intr_priv.h"
-#include "esp_amp_priv.h"
 #include "esp_amp_sys_info.h"
 
 #define ESP_AMP_MAIN_SW_INTR_REG    HP_SYSTEM_CPU_INT_FROM_CPU_2_REG
@@ -61,10 +63,10 @@ static void IRAM_ATTR intr_mat_sw_intr_handler(void *args)
 #endif
 
 #if IS_MAIN_CORE
-        ESP_AMP_DRAM_LOGD(TAG, "%s() called. Received software interrupt from Sub-core\n", __func__);
+        ESP_AMP_DRAM_LOGD(TAG, "Received software interrupt from subcore\n");
         while (!atomic_compare_exchange_weak(&s_sw_intr_st->main_core_sw_intr_st, &unprocessed, 0));
 #else
-        ESP_AMP_DRAM_LOGD(TAG, "%s() called. Received software interrupt from Main-core\n", __func__);
+        ESP_AMP_DRAM_LOGD(TAG, "Received software interrupt from maincore\n");
         while (!atomic_compare_exchange_weak(&s_sw_intr_st->sub_core_sw_intr_st, &unprocessed, 0));
 #endif
         ESP_AMP_DRAM_LOGD(TAG, "sw_intr_st at %p, unprocessed=0x%x\n", s_sw_intr_st, (unsigned)unprocessed);
@@ -92,7 +94,7 @@ static void IRAM_ATTR intr_mat_sw_intr_handler(void *args)
 #endif
         }
     } else {
-        ESP_AMP_DRAM_LOGD(TAG, "%s() called. Unknown interrupt: 0x%08x\n", __func__, intr_status_reg);
+        ESP_AMP_DRAM_LOGD(TAG, "Unknown interrupt: 0x%p\n", (void*)(intr_status_reg));
     }
 
 #if !IS_ENV_BM
@@ -104,10 +106,10 @@ static void IRAM_ATTR intr_mat_sw_intr_handler(void *args)
 void esp_amp_sw_intr_trigger(esp_amp_sw_intr_id_t intr_id)
 {
     ESP_AMP_LOGD(TAG, "intr_id:%d, SW_INTR_ID_MAX:%d", intr_id, SW_INTR_ID_MAX);
-    ESP_AMP_ASSERT((int)intr_id <= (int)SW_INTR_ID_MAX);
+    assert((int)intr_id <= (int)SW_INTR_ID_MAX);
 
     /* must be initialized */
-    ESP_AMP_ASSERT(s_sw_intr_st != NULL);
+    assert(s_sw_intr_st != NULL);
 
     int core_id = esp_cpu_get_core_id();
 
@@ -158,7 +160,7 @@ int esp_amp_sw_intr_init(void)
 {
 #if IS_MAIN_CORE
     /* initialize software interrupt status */
-    s_sw_intr_st = (esp_amp_sw_intr_st_t *) esp_amp_sys_info_alloc(SYS_INFO_ID_SW_INTR, sizeof(esp_amp_sw_intr_st_t));
+    s_sw_intr_st = (esp_amp_sw_intr_st_t *) esp_amp_sys_info_alloc(SYS_INFO_RESERVED_ID_SW_INTR, sizeof(esp_amp_sw_intr_st_t));
     if (s_sw_intr_st == NULL) {
         ESP_AMP_LOGE(TAG, "Failed to alloc sw_intr_st in sys info");
         return -1;
@@ -167,7 +169,7 @@ int esp_amp_sw_intr_init(void)
     atomic_init(&s_sw_intr_st->main_core_sw_intr_st, 0);
     atomic_init(&s_sw_intr_st->sub_core_sw_intr_st, 0);
 #else
-    s_sw_intr_st = (esp_amp_sw_intr_st_t *) esp_amp_sys_info_get(SYS_INFO_ID_SW_INTR, NULL);
+    s_sw_intr_st = (esp_amp_sw_intr_st_t *) esp_amp_sys_info_get(SYS_INFO_RESERVED_ID_SW_INTR, NULL);
     if (s_sw_intr_st == NULL) {
         return -1;
     }

@@ -6,4 +6,4 @@
 
 #pragma once
 
-#define SYS_INFO_ID_VQUEUE_CONF      (0)
+#define SYS_INFO_ID_VQUEUE_EXAMPLE      (0)

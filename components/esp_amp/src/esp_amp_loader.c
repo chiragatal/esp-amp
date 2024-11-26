@@ -23,47 +23,38 @@
 
 #include "esp_amp_loader.h"
 #include "esp_amp.h"
-#include "esp_amp_priv.h"
 #include "esp_amp_mem_priv.h"
 
-
-#if CONFIG_ESP_AMP_SUBCORE_USE_HP_MEM
-
-SOC_RESERVE_MEMORY_REGION((intptr_t)(SUBCORE_USE_HP_MEM_BOUNDARY - SUBCORE_USE_HP_MEM_SIZE), (intptr_t)(SUBCORE_USE_HP_MEM_BOUNDARY), subcore_use);
-
-#endif
-
+#if CONFIG_ESP_AMP_SUBCORE_TYPE_LP_CORE
 #if ESP_ROM_HAS_LP_ROM
 extern uint32_t _rtc_ulp_memory_start;
-#endif //ESP_ROM_HAS_LP_ROM
+static uint32_t* ulp_base_address = (uint32_t*)&_rtc_ulp_memory_start;
+#else
+static uint32_t* ulp_base_address = RTC_SLOW_MEM;
+#endif
+
+#define ULP_RESET_HANDLER_ADDR (intptr_t)(ulp_base_address + 0x80 / 4)
+#endif
 
 const static char* TAG = "esp-amp-loader";
 
 #if CONFIG_ESP_AMP_SUBCORE_USE_HP_MEM
+SOC_RESERVE_MEMORY_REGION((intptr_t)(SUBCORE_USE_HP_MEM_BOUNDARY - SUBCORE_USE_HP_MEM_SIZE), (intptr_t)(SUBCORE_USE_HP_MEM_BOUNDARY), subcore_use);
+
 static inline bool is_valid_subcore_app_dram_addr(intptr_t addr)
 {
     intptr_t dram_reserved_start = SUBCORE_USE_HP_MEM_BOUNDARY - SUBCORE_USE_HP_MEM_SIZE;
     intptr_t dram_reserved_end = SUBCORE_USE_HP_MEM_BOUNDARY;
-    return (addr >= dram_reserved_start && addr < dram_reserved_end);
+    return (addr >= dram_reserved_start && addr <= dram_reserved_end);
 }
-#endif
-
-#if CONFIG_ESP_AMP_SUBCORE_TYPE_HP_CORE
-extern uint32_t s_appcpu_entry;
 #endif
 
 #if CONFIG_ESP_AMP_SUBCORE_TYPE_LP_CORE
 static inline bool is_valid_subcore_app_rtcram_addr(intptr_t addr)
 {
-#if ESP_ROM_HAS_LP_ROM
-    uint32_t* base = (uint32_t*)&_rtc_ulp_memory_start;
-#else
-    uint32_t* base = RTC_SLOW_MEM;
-#endif
-
-    intptr_t rtc_ram_reserved_start = (intptr_t)(base);
-    intptr_t rtc_ram_reserved_end = rtc_ram_reserved_start + CONFIG_ULP_COPROC_RESERVE_MEM;
-    return (addr >= rtc_ram_reserved_start && addr < rtc_ram_reserved_end);
+    intptr_t rtc_ram_reserved_start = (intptr_t)(ulp_base_address);
+    intptr_t rtc_ram_reserved_end = rtc_ram_reserved_start + ALIGN_DOWN(CONFIG_ULP_COPROC_RESERVE_MEM, 0x8);
+    return (addr >= rtc_ram_reserved_start && addr <= rtc_ram_reserved_end);
 }
 #endif
 
@@ -118,13 +109,11 @@ esp_err_t esp_amp_load_sub(const void* sub_bin)
     hal_memset((void *)(SUBCORE_USE_HP_MEM_BOUNDARY - SUBCORE_USE_HP_MEM_SIZE), 0, SUBCORE_USE_HP_MEM_SIZE);
 #endif
 
-#if CONFIG_ESP_AMP_SUBCORE_TYPE_LP_CORE
-    hal_memset(RTC_SLOW_MEM, 0, CONFIG_ULP_COPROC_RESERVE_MEM - CONFIG_ULP_SHARED_MEM);
-#endif
-
     memcpy(&sub_img_data.image, sub_bin_byte_ptr, sizeof(esp_image_header_t));
+
 #if CONFIG_ESP_AMP_SUBCORE_TYPE_LP_CORE
-    if (sub_img_data.image.entry_addr != ESP_AMP_SUBCORE_START_ENTRY) {
+    hal_memset(ulp_base_address, 0, CONFIG_ULP_COPROC_RESERVE_MEM);
+    if (sub_img_data.image.entry_addr != ULP_RESET_HANDLER_ADDR) {
         ESP_AMP_LOGE(TAG, "Invalid entry address");
         ret = ESP_FAIL;
     }
@@ -135,10 +124,6 @@ esp_err_t esp_amp_load_sub(const void* sub_bin)
     }
 #endif
     else {
-#if CONFIG_ESP_AMP_SUBCORE_TYPE_HP_CORE
-        s_appcpu_entry = sub_img_data.image.entry_addr;
-        ESP_AMP_LOGI(TAG, "Loading appcpu binary with entry address @%p", (void*)(s_appcpu_entry));
-#endif
         uint32_t next_addr = sizeof(esp_image_header_t);
         for (int i = 0; i < sub_img_data.image.segment_count; i++) {
             memcpy(&sub_img_data.segments[i], &sub_bin_byte_ptr[next_addr], sizeof(esp_image_segment_header_t));
@@ -169,10 +154,16 @@ esp_err_t esp_amp_load_sub(const void* sub_bin)
     if (ret != ESP_OK) {
         unused_reserved_dram_start = SUBCORE_USE_HP_MEM_BOUNDARY - SUBCORE_USE_HP_MEM_SIZE;
     }
-    ESP_ERROR_CHECK(heap_caps_add_region(unused_reserved_dram_start, (intptr_t)SUBCORE_USE_HP_MEM_BOUNDARY));
-    ESP_AMP_LOGI(TAG, "Give unused reserved dram region (%p - %p) back to main-core heap",
+
+    if (heap_caps_add_region(unused_reserved_dram_start, (intptr_t)SUBCORE_USE_HP_MEM_BOUNDARY) == ESP_OK) {
+        ESP_AMP_LOGI(TAG, "Give unused reserved dram region (%p - %p) back to main-core heap",
                  (void *)unused_reserved_dram_start, (void *)SUBCORE_USE_HP_MEM_BOUNDARY);
+    }
 #endif
 
+#if CONFIG_ESP_AMP_SUBCORE_TYPE_HP_CORE
+    extern uint32_t hp_subcore_boot_addr;
+    hp_subcore_boot_addr = sub_img_data.image.entry_addr;
+#endif
     return ret;
 }

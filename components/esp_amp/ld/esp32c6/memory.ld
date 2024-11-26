@@ -1,8 +1,9 @@
 /*
- * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+
 #include "sdkconfig.h"
 #include "soc/soc.h"
 #include "ld.common"
@@ -15,6 +16,11 @@
 #define ULP_MEM_START_ADDRESS (SOC_RTC_DRAM_LOW)
 #endif
 
+/* Ensure the end where the shared memory starts is aligned to 8 bytes
+   if updating this also update the same in ulp_lp_core_memory_shared.c
+ */
+#define ALIGNED_COPROC_MEM ALIGN_DOWN(CONFIG_ULP_COPROC_RESERVE_MEM, 0x8)
+
 #define SUBCORE_USE_HP_MEM_SIZE CONFIG_ESP_AMP_SUBCORE_USE_HP_MEM_SIZE
 
 ENTRY(reset_vector)
@@ -23,7 +29,8 @@ MEMORY
 {
     /*first 128byte for exception/interrupt vectors*/
     vector_table(RX) :   ORIGIN = ULP_MEM_START_ADDRESS , LENGTH = 0x80
-    ram(RWX) :           ORIGIN = ULP_MEM_START_ADDRESS + 0x80, LENGTH = CONFIG_ULP_COPROC_RESERVE_MEM - 0x80 - CONFIG_ULP_SHARED_MEM
+    ram(RWX) :           ORIGIN = ULP_MEM_START_ADDRESS + 0x80, LENGTH = ALIGNED_COPROC_MEM - 0x80 - CONFIG_ULP_SHARED_MEM
+    shared_mem_ram(RW) : ORIGIN = ULP_MEM_START_ADDRESS + ALIGNED_COPROC_MEM - CONFIG_ULP_SHARED_MEM, LENGTH = CONFIG_ULP_SHARED_MEM
 #if CONFIG_ESP_AMP_SUBCORE_USE_HP_MEM
     hpram(RWX) :         ORIGIN = SUBCORE_USE_HP_MEM_BOUNDARY - SUBCORE_USE_HP_MEM_SIZE , LENGTH = SUBCORE_USE_HP_MEM_SIZE
 #endif
@@ -46,6 +53,45 @@ SECTIONS
         *(.text.handlers) /* Interrupt & panic handlers */
     } > ram
 
+    .iram1.0 ALIGN(4):
+    {
+        *(.iram1.*)
+    } > ram
+
+  .init_array :
+  {
+    PROVIDE_HIDDEN (__init_array_start = .);
+    KEEP (*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
+    KEEP (*(.init_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .ctors))
+    PROVIDE_HIDDEN (__init_array_end = .);
+  } > ram
+
+  .fini_array :
+  {
+    PROVIDE_HIDDEN (__fini_array_start = .);
+    KEEP (*(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*)))
+    KEEP (*(.fini_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .dtors))
+    PROVIDE_HIDDEN (__fini_array_end = .);
+  } > ram
+
+  .ctors :
+  {
+    KEEP (*crtbegin.o(.ctors))
+    KEEP (*crtbegin?.o(.ctors))
+    KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
+    KEEP (*(SORT(.ctors.*)))
+    KEEP (*(.ctors))
+  } > ram
+
+  .dtors :
+  {
+    KEEP (*crtbegin.o(.dtors))
+    KEEP (*crtbegin?.o(.dtors))
+    KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
+    KEEP (*(SORT(.dtors.*)))
+    KEEP (*(.dtors))
+  } > ram
+
 #if CONFIG_ESP_AMP_SUBCORE_USE_HP_MEM
 
     . = ORIGIN(hpram);
@@ -60,10 +106,13 @@ SECTIONS
     {
         *(.rodata)
         *(.rodata*)
+        *(.srodata)
+        *(.srodata*)
     } > hpram
 
     .data ALIGN(4):
     {
+        *(.dram1 .dram1.*)
         *(.data)
         *(.data*)
         *(.sdata)
@@ -98,10 +147,13 @@ SECTIONS
     {
         *(.rodata)
         *(.rodata*)
+        *(.srodata)
+        *(.srodata*)
     } > ram
 
     .data ALIGN(4):
     {
+        *(.dram1 .dram1.*)
         *(.data)
         *(.data*)
         *(.sdata)
@@ -127,4 +179,11 @@ SECTIONS
         ASSERT(__stack_top - __stack_bottom >= __stack_size_min, "Error: no space for stack");
     } > ram
 
+    . = ORIGIN(shared_mem_ram);
+    .shared_mem (ALIGN(4)) :
+    {
+        KEEP(*(.shared_mem))
+    } > shared_mem_ram
+
+#include "elf_misc.ld.in"
 }

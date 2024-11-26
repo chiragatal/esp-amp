@@ -37,10 +37,10 @@ uint32_t esp_amp_event_notify_by_id(uint16_t sysinfo_id, uint32_t bit_mask);
  */
 #if IS_MAIN_CORE
 #define esp_amp_event_notify(bit_mask) \
-    esp_amp_event_notify_by_id(SYS_INFO_ID_EVENT_MAIN, bit_mask)
+    esp_amp_event_notify_by_id(SYS_INFO_RESERVED_ID_EVENT_MAIN, bit_mask)
 #else
 #define esp_amp_event_notify(bit_mask) \
-    esp_amp_event_notify_by_id(SYS_INFO_ID_EVENT_SUB, bit_mask)
+    esp_amp_event_notify_by_id(SYS_INFO_RESERVED_ID_EVENT_SUB, bit_mask)
 #endif /* IS_MAIN_CORE */
 
 /**
@@ -68,10 +68,10 @@ uint32_t esp_amp_event_wait_by_id(uint16_t sysinfo_id, uint32_t bit_mask, bool c
  */
 #if IS_MAIN_CORE
 #define esp_amp_event_wait(bit_mask, clear_on_exit, wait_for_all, timeout) \
-    esp_amp_event_wait_by_id(SYS_INFO_ID_EVENT_SUB, bit_mask, clear_on_exit, wait_for_all, timeout)
+    esp_amp_event_wait_by_id(SYS_INFO_RESERVED_ID_EVENT_SUB, bit_mask, clear_on_exit, wait_for_all, timeout)
 #else
 #define esp_amp_event_wait(bit_mask, clear_on_exit, wait_for_all, timeout) \
-    esp_amp_event_wait_by_id(SYS_INFO_ID_EVENT_MAIN, bit_mask, clear_on_exit, wait_for_all, timeout)
+    esp_amp_event_wait_by_id(SYS_INFO_RESERVED_ID_EVENT_MAIN, bit_mask, clear_on_exit, wait_for_all, timeout)
 #endif /* IS_MAIN_CORE */
 
 #if IS_ENV_BM
@@ -79,7 +79,7 @@ uint32_t esp_amp_event_wait_by_id(uint16_t sysinfo_id, uint32_t bit_mask, bool c
     esp_amp_event_wait_by_id(sysinfo_id, bit_mask, clear_on_exit, wait_for_all, 0)
 
 #define esp_amp_event_poll(bit_mask, clear_on_exit, wait_for_all) \
-    esp_amp_event_wait_by_id(SYS_INFO_ID_EVENT_MAIN, bit_mask, clear_on_exit, wait_for_all, 0)
+    esp_amp_event_wait_by_id(SYS_INFO_RESERVED_ID_EVENT_MAIN, bit_mask, clear_on_exit, wait_for_all, 0)
 #endif /* IS_ENV_BM */
 
 

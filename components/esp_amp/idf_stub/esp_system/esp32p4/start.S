@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #include "sdkconfig.h"
 
     .section .text
@@ -24,10 +30,6 @@ _start:
     la      a0, __libc_fini_array   # Register global termination functions
     call    atexit                  #  to be called upon exit
     call    __libc_init_array       # Run global initialization functions
-
-    call    syscalls_init
-
-    
 
     /* Call main */
     li      a0, 0

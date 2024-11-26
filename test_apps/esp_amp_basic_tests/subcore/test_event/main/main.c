@@ -30,7 +30,7 @@ int main(void)
 
     event_bits = esp_amp_event_wait(EVENT_MAINCORE_READY, false, true, 1000);
     if ((event_bits & EVENT_MAINCORE_READY) == EVENT_MAINCORE_READY) {
-        uint32_t maincore_event_bit = esp_amp_event_clear_by_id(SYS_INFO_ID_EVENT_MAIN, EVENT_MAINCORE_READY);
+        uint32_t maincore_event_bit = esp_amp_event_clear_by_id(SYS_INFO_RESERVED_ID_EVENT_MAIN, EVENT_MAINCORE_READY);
         assert(maincore_event_bit == EVENT_MAINCORE_READY);
         esp_amp_event_notify(EVENT_SUBCORE_READY);
     } else {

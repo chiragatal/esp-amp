@@ -11,7 +11,7 @@ Compared to the default Symmetric Multiprocessing (SMP) system offered by ESP-ID
 
 ## Architecture
 
-ESP-AMP features a set of components for inter-core communication (IPC) and synchronization. These components are organized in a layered architecture, as shown in the figure below.
+ESP-AMP offers a comprehensive set of components for inter-core communication (IPC) and synchronization, organized in a layered architecture as illustrated in the figure below. Each layer provides its own set of APIs, where higher-level APIs build upon lower-level ones. This design allows users the flexibility to select only the APIs they need: they can either use a subset of APIs from a single layer or combine APIs from different layers based on their specific use case, streamlining the application development process.
 
 ![ESP-AMP architecture](./docs/imgs/esp_amp_arch.png)
 
@@ -36,7 +36,7 @@ Please check [Build System Doc](./docs/build_system.md) for more details.
 
 ## Supported ESP-IDF Version and SoCs
 
-For project development with ESP-AMP, it is recommended to use IDF v5.3.1 or any subsequent releases. At present, the following SoCs are supported:
+For project development with ESP-AMP, it is recommended to use IDF v5.3.1. At present, the following SoCs are supported:
 
 | SoC | Maincore | Subcore |
 | :--- | :--- | :--- |
@@ -78,10 +78,15 @@ Console log will be printed on HP-UART and can be viewed via serial monitor. For
 
 ## Tips for developing subcore firmware
 
-* Stay with static memory allocation: Subcore firmware does not support dynamic memory allocation. Section for heap is not specified in linker script and the entire space above `.bss` section is reserved for stack. There is no easy way to prevent malloc and free in subcore application, since newlib provides an implementation that subcore apps can link to. However, even though the build won't fail, the application may run into unpredictable behavior if stack is corrupted by malloc.
-* Reserve enough stack space. Stack is allocated from LP RAM on ESP32-C6 and HP RAM on ESP32-P4. In ESP-AMP, stack space starts from the end of `.bss` section. Stack smarshing protection mechanism is not supported on subcore. When the stack grows, it may overwrite `.bss` section without any warning and cause unpredictable results. Therefore, it is recommended to reserve enough stack space for subcore application. Sdkconfig option `ESP_AMP_SUBCORE_STACK_SIZE_MIN` can be used to specify the minimum stack size. If the remaining memory space is insufficient to allocate the stack, the build will fail.
+The following tips work for both ESP32-P4 and ESP32-C6:
+
+* Stay with static memory allocation: Subcore firmware does not support dynamic memory allocation. Heap section is not specified in linker script and the entire space above `.bss` section is reserved for stack. Calling malloc() will always fail.
+* Reserve enough stack space. Stack is allocated from LP RAM on ESP32-C6 and HP RAM on ESP32-P4. In ESP-AMP, stack space starts from the end of `.bss` section. Stack smashing protection mechanism is not supported on subcore. When the stack grows, it may overwrite `.bss` section without any warning and cause unpredictable results. Therefore, it is recommended to reserve enough stack space for subcore application. Sdkconfig option `ESP_AMP_SUBCORE_STACK_SIZE_MIN` can be used to specify the minimum stack size. If the remaining memory space is insufficient to allocate the stack, the build will fail.
+
+If you are developing subcore firmware for ESP32-C6, please refer to the following tips:
+
 * Go beyond the limited RTC Memory: By default, subcore firmware is loaded into RTC memory if subcore type is LP core. However, the limited size of RTC RAM (16KB on ESP32-C6) can quickly go short as LP core firmware grows. To solve the problem, set `CONFIG_ESP_AMP_SUBCORE_USE_HP_MEM=y` to load subcore firmware into HP RAM. Please refer to [Memory Layout Doc](./docs/memory_layout.md) for more details.
-* Keep away from HP ROM APIs: LP core has no access to HP ROM. Therefore, ROM apis such as `esp_rom_printf`, `esp_rom_delay_us` are not supported on subcore.
+* Keep away from HP ROM APIs: LP core has no access to HP ROM. Therefore, ROM apis such as `esp_rom_printf`, `esp_rom_delay_us` are not supported on LP core.
 
 ## Known Limitations
 
@@ -91,7 +96,7 @@ ESP-AMP is still under active development. The following limitations exist at pr
 
 * Subcore Type: At present only HP core is supported as subcore on ESP32-P4. LP core is not yet supported.
 * Missing support for XIP and PSRAM: Cache is not enabled on subcore at present. As a consequence, accessing data from PSRAM and execution in Place (XIP) from flash are not supported.
-* Limited Cache Size on ESP32-P4 Maincore: ESP32-P4 SoC encapsulates 768 KB Internal L2MEM, from which cache memory is allocated. Users can configure 128KB, 256KB or 512KB as cache memory via sdkconfig `CONFIG_CACHE_L2_CACHE_SIZE`. However, due to the 256KB reserved L2MEM for subcore firmawre, the maximum size of cache memory with ESP-AMP enabled is reduced to 256KB.
+* Limited Cache Size on ESP32-P4 Maincore: ESP32-P4 SoC encapsulates 768 KB Internal L2MEM, from which cache memory is allocated. Users can configure 128KB, 256KB or 512KB as cache memory via sdkconfig `CONFIG_CACHE_L2_CACHE_SIZE`. However, due to the 256KB reserved L2MEM for subcore firmware, the maximum size of cache memory with ESP-AMP enabled is reduced to 256KB.
 
 ### ESP32-C6 Related
 
@@ -110,3 +115,11 @@ It is not recommended to use RTCRAM as shared memory since atomic operation is n
 ### How to develop peripheral drivers for subcore?
 
 For HP peripherals, ESP-IDF hal component contains low-level drivers which provides an OS-agnostic and consistent set of APIs which can be used in any environment to manipulate HP peripheral registers among different SoCs. For LP peripherals, ESP-IDF ulp component has already implemented ready-to-use drivers. Please refer to [peripheral](./docs/peripheral.md) for more details.
+
+### Is floating-point supported on subcore?
+
+ESP32-P4 HP core supports the RISC-V standard Single-Precision Floating-Point instruction set extension. This enables hardware FPU acceleration for floating-point arithmetic, providing a significant performance boost for applications that rely heavily on floating-point operations. ESP-AMP enables this feature by default when the ESP32-P4 HP core is selected as the subcore. However, this feature comes with trade-offs, particularly in terms of context switch overhead. Hardware-based floating-point operations require saving and restoring additional registers, which can increase the time needed for context switching. This overhead can impact ISR handling speed and compromise the system's real-time performance. ESP-AMP offers the flexibility to whether enable hardware FPU in ISRs or not. By default, it is disabled to achieve better real-time performance, and any attempt to execute floating-point instructions in an ISR will result in an illegal instruction exception. If you decide to enable hardware-based floating-point operations in ISRs, set `CONFIG_ESP_AMP_SUBCORE_ENABLE_HW_FPU_IN_ISR=y` in the sdkconfig.
+
+The LP core lacks a hardware FPU, so any floating-point operations are executed purely in software using the built-in libc provided by the compiler (in the case of ESP-AMP, this is newlib-nano). This software-based approach significantly increases code size and adds computational overhead. Consequently, it is strongly recommended to use integer operations exclusively when the LP core is selected as the subcore.
+
+**NOTE**: Printing floating-point numbers to the console is not supported by either HP or LP subcore.

@@ -21,10 +21,8 @@ using std::atomic_uint;
 #include "riscv/rv_utils.h"
 #include "esp_amp_sw_intr.h"
 
-#if IS_MAIN_CORE
-#define TAG "main_sw_intr"
-#else
-#define TAG "sub_sw_intr"
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #define ESP_AMP_SW_INTR_HANDLER_TABLE_LEN CONFIG_ESP_AMP_SW_INTR_HANDLER_TABLE_LEN
@@ -39,3 +37,7 @@ typedef struct {
     atomic_int main_core_sw_intr_st;
     atomic_int sub_core_sw_intr_st;
 } esp_amp_sw_intr_st_t;
+
+#ifdef __cplusplus
+}
+#endif

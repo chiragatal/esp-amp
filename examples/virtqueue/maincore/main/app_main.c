@@ -58,22 +58,13 @@ void app_main(void)
     SemaphoreHandle_t semaphore = xSemaphoreCreateCounting(16, 0);
     int queue_len = 16;
     int queue_item_size = 64;
-    // allocate the virtqueue config in shared memory, which can be used by the subcore to create the virtqueue handler
-    esp_amp_queue_conf_t* vq_conf = (esp_amp_queue_conf_t*)(esp_amp_sys_info_alloc(SYS_INFO_ID_VQUEUE_CONF, sizeof(esp_amp_queue_conf_t)));
-    assert(vq_conf != NULL);
-    esp_amp_sys_info_dump();
     esp_amp_queue_t* vq = (esp_amp_queue_t*)(malloc(sizeof(esp_amp_queue_t)));
-    // since subcore can direcly access the main-core's memory currently, we can allocate the queue data structure on main-core's heap
-    esp_amp_queue_desc_t* vq_desc = (esp_amp_queue_desc_t*)(malloc(queue_len * sizeof(esp_amp_queue_desc_t)));
-    void* vq_buffer = malloc(queue_len * queue_item_size);
+    /* Initialize virtqueue data structure and shared memory */
+    assert(esp_amp_queue_main_init(vq, queue_len, queue_item_size, vq_recv_isr, (void*)(semaphore), false, SYS_INFO_ID_VQUEUE_EXAMPLE) == 0);
+    /* Bind and enable software interrupt for virtqueue */
+    esp_amp_queue_intr_enable(vq);
 
-    // initialize queue buffer and descriptor
-    esp_amp_queue_init_buffer(vq_conf, queue_len, queue_item_size, vq_desc, vq_buffer);
-    // create the queue handler (as the role of `remote-core`)
-    esp_amp_queue_create(vq, vq_conf, vq_recv_isr, NULL, (void*)(semaphore), false);
-
-    assert(esp_amp_sw_intr_add_handler(SW_INTR_ID_0, vq->callback_fc, vq->priv_data) == 0);
-
+    esp_amp_sys_info_dump();
     esp_amp_sw_intr_handler_dump();
 
     /* Load firmware & start subcore */

@@ -6,7 +6,7 @@ This document introduces the build system of ESP-AMP, where to store subcore fir
 
 An ESP-AMP project generates two separated firmwares for maincore target and subcore target respectively. Maincore firmware follows the standard IDF buildflow. Subcore firmware is built by an external CMake project with its own toolchain settings. After building, subcore firmware can be embedded into maincore firmware as a binary blob or stored in a separate flash partition. It then can be loaded to DRAM by maincore firmware for subcore to execute.
 
-## Building ES-AMP Projects
+## Building ESP-AMP Projects
 
 ESP-AMP provides two different approaches to build ESP-AMP projects, unified build and separated build. They fit in different use cases.
 
@@ -115,11 +115,11 @@ We suggest creating a subcore config file `subcore_config.cmake` under subcore p
 
 Subcore project also supports IDF's component feature. This means you can create mulitple components with `idf_component_register()` in each component folder. Components placed in `${CMAKE_PROJECT_DIR}/component` will also be automatically detected and built when you run `idf.py build` command.
 
-However, there are few restrictions:
-1. subcore project does not support renamed main component. Keep the main component name as `main`.
-2. idf component manager is not supported. `idf_component.yml` can not be used to download components.
+idf component manager is also supported. This means you can create an `idf_component.yml` file under subcore project's main component folder to download dependencies from IDF component registry. For more information, please refer to [IDF Component Manager](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/tools/idf-component-manager.html).
 
 Subcore project also supports sdkconfig. However, `Kconfig` files in subcore project are handled differently in separated build and unified build. In separated build, subcore component `Kconfig` is processed on its own, without involvement of maincore. Separate `sdkconfig` file is generated for subcore project only when you run `idf.py set-target` in subcore project folder. In unified build, subcore sdkconfig doesnot generate `sdkconfig`file. Instead, itrelies on maincore's project to generates a commonly used `sdkconfig` file shared by both projects. Details are described in the following sections.
+
+**NOTE**: subcore project does not support renamed main component. Keep the main component name as `main`.
 
 #### Separated Build
 
@@ -154,7 +154,7 @@ After the subcore firmware is generated, it must be stored somewhere in flash so
 
 ### Embed into Maincore Firmware
 
-Free free to skip this section if you choose separated build approach, since unified build approach is the only supported way to embed subcore firmware into maincore.
+Feel free to skip this section if you choose separated build approach, since unified build approach is the only supported way to embed subcore firmware into maincore.
 
 The embedding of subcore firmware is initiated by `target_add_binary_data(${COMPONENT_LIB} ...)` which is called inside `esp_amp_add_subcore_project()` after subcore firmware is generated. `COMPONENT_LIB` is the maincore component triggering `esp_amp_add_subcore_project()`. The subcore firmware is embedded into the static library of this component and later linked to the `.rodata` section of the eventual maincore executable. The maincore executable can refer to this embedded binary by `_binary_${SUBCORE_APP_NAME}_bin_start` and `_binary_${SUBCORE_APP_NAME}_bin_end`. Recall that `SUBCORE_APP_NAME` is the name of the subcore application defined in `subcore_config.cmake`.
 
@@ -208,5 +208,5 @@ If you encounter issues such as `_binary_${SUBCORE_APP_NAME}_bin_start not found
 
 ## Application Examples 
 
-* [separate_build](../examples/build_system/separate_build/): deomonstrates how to build subcore firmware separately and download it into flash partition.
+* [separate_build](../examples/build_system/separate_build/): demonstrates how to build subcore firmware separately and download it into flash partition.
 * [unified_build](../examples/build_system/unified_build): demonstrates how to build subcore firmware along with maincore firmware in a single step. Subcore firmware can be embedded into maincore firmware or downloaded into flash partition, depending on the sdkconfig option `SUBCORE_FIRMWARE_LOCATION`.
