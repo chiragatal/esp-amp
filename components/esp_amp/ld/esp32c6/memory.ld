@@ -125,8 +125,17 @@ SECTIONS
         *(.bss*)
         *(.sbss)
         *(.sbss*)
-        PROVIDE(end = .);
     } > hpram
+
+    . = ALIGN(8);
+    _end = .;
+    PROVIDE (end = .);
+
+#if CONFIG_ESP_AMP_SUBCORE_ENABLE_HEAP
+    __heap_start = .;
+    . += CONFIG_ESP_AMP_SUBCORE_HEAP_SIZE;
+    __heap_end = ALIGN(8);
+#endif
 
     /* we need end_maker to tell loader where bss ends */
     .end_marker ALIGN(4) :
@@ -166,8 +175,17 @@ SECTIONS
         *(.bss*)
         *(.sbss)
         *(.sbss*)
-        PROVIDE(end = .);
     } >ram
+
+    . = ALIGN(8);
+    _end = .;
+    PROVIDE (end = .);
+
+#if CONFIG_ESP_AMP_SUBCORE_ENABLE_HEAP
+    __heap_start = .;
+    . += CONFIG_ESP_AMP_SUBCORE_HEAP_SIZE;
+    __heap_end = ALIGN(8);
+#endif
 
 #endif
 

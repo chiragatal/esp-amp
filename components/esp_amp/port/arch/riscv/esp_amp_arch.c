@@ -30,4 +30,3 @@ uint64_t esp_amp_arch_get_cpu_cycle(void)
 
     return cpu_cycle.rv_mcycle_comb;
 }
-

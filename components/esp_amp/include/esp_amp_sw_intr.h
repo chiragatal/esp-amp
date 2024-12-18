@@ -7,15 +7,6 @@
 #pragma once
 
 #ifdef __cplusplus
-#include <atomic>
-using std::atomic_bool;
-using std::atomic_int;
-using std::atomic_uint;
-#else
-#include <stdatomic.h>
-#endif
-
-#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -101,14 +92,6 @@ void esp_amp_sw_intr_handler_dump(void);
  * @retval -1 failed to init softare interrupt manager
  */
 int esp_amp_sw_intr_init(void);
-
-// /**
-//  * Enable software interrupt (must be called after esp_amp_sw_intr_init)
-//  *
-//  * @retval 0 if successful
-//  * @retval -1 faild to enable software interrupt
-//  */
-// int esp_amp_sw_intr_enable(void);
 
 #ifdef __cplusplus
 }

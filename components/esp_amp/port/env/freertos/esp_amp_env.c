@@ -12,20 +12,23 @@ static int lock;
 
 void esp_amp_env_enter_critical()
 {
-    portENTER_CRITICAL(&lock);
+    if (xPortInIsrContext()) {
+        portENTER_CRITICAL_ISR(&lock);
+    } else {
+        portENTER_CRITICAL(&lock);
+    }
 }
 
 void esp_amp_env_exit_critical()
 {
-    portEXIT_CRITICAL(&lock);
+    if (xPortInIsrContext()) {
+        portEXIT_CRITICAL_ISR(&lock);
+    } else {
+        portEXIT_CRITICAL(&lock);
+    }
 }
 
-void esp_amp_env_enter_critical_isr()
+int esp_amp_env_in_isr(void)
 {
-    portENTER_CRITICAL_ISR(&lock);
-}
-
-void esp_amp_env_exit_critical_isr()
-{
-    portEXIT_CRITICAL_ISR(&lock);
+    return xPortInIsrContext();
 }

@@ -57,6 +57,10 @@ Proper synchronization is necessary to avoid conflicts when shared memory is acc
 
 * `CONFIG_ESP_AMP_SUBCORE_USE_HP_MEM`: If subcore firmware cannot fit into RTCRAM, part of DRAM can be reserved for subcore to load and run its firmware in DRAM.
 * `CONFIG_ESP_AMP_SUBCORE_USE_HP_MEM_SIZE`: This specifies the size of DRAM used for subcore firmware.
+* `CONFIG_ESP_AMP_SUBCORE_STACK_SIZE_MIN`: This specifies the minimum stack size of subcore. Stack is allocated from LP RAM on ESP32-C6 and HP RAM on ESP32-P4. If the remaining RAM is insufficient for subcore stack, build will fail. The actual size of stack can be larger than this value if the subcore type is LP core. The entire unused RTC memory is allocated for subcore stack.
+* `ESP_AMP_SUBCORE_ENABLE_HEAP`: Enable heap for subcore.
+* `CONFIG_ESP_AMP_SUBCORE_HEAP_SIZE`: This specifies the size of heap for subcore.
+
 
 ## Application Examples
 

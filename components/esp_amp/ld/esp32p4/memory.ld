@@ -119,11 +119,17 @@ SECTIONS
    *(.bss .bss.* .gnu.linkonce.b.*)
    *(COMMON)
   } > ram
-  . = ALIGN(4);
+  . = ALIGN(8);
   __BSS_END__ = .;
   __global_pointer$ = MIN(__SDATA_BEGIN__ + 0x800,
                           MAX(__DATA_BEGIN__ + 0x800, __BSS_END__ - 0x800));
   _end = .; PROVIDE (end = .);
+
+#if CONFIG_ESP_AMP_SUBCORE_ENABLE_HEAP
+  __heap_start = .;
+  . += CONFIG_ESP_AMP_SUBCORE_HEAP_SIZE;
+  __heap_end = ALIGN(8);
+#endif
 
   /* Stack */
   .stack :

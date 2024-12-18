@@ -178,7 +178,7 @@ esp_amp_rpc_status_t esp_amp_rpc_server_deinit(void)
 
     if (ret == ESP_AMP_RPC_STATUS_OK) {
         if (esp_amp_rpc_server.rpmsg_dev) {
-            esp_amp_rpmsg_del_endpoint(esp_amp_rpc_server.rpmsg_dev, esp_amp_rpc_server.server_addr);
+            esp_amp_rpmsg_delete_endpoint(esp_amp_rpc_server.rpmsg_dev, esp_amp_rpc_server.server_addr);
             esp_amp_rpc_server.rpmsg_dev = NULL;
         }
         if (esp_amp_rpc_server.event) {
@@ -324,14 +324,14 @@ static int esp_amp_rpc_server_isr(void *pkt_in_buf, uint16_t size, uint16_t src_
 {
     if (size < sizeof(esp_amp_rpc_pkt_t)) {
         ESP_AMP_DRAM_LOGE(TAG, "incomplete rx buf");
-        esp_amp_rpmsg_destroy_from_isr(esp_amp_rpc_server.rpmsg_dev, pkt_in_buf);
+        esp_amp_rpmsg_destroy(esp_amp_rpc_server.rpmsg_dev, pkt_in_buf);
         return 0;
     }
 
     BaseType_t need_yield;
     /* try to send to server */
     if (xQueueSendFromISR(esp_amp_rpc_server.rx_q, &pkt_in_buf, &need_yield) != pdTRUE) {
-        esp_amp_rpmsg_destroy_from_isr(esp_amp_rpc_server.rpmsg_dev, pkt_in_buf);
+        esp_amp_rpmsg_destroy(esp_amp_rpc_server.rpmsg_dev, pkt_in_buf);
     }
 
     portYIELD_FROM_ISR(need_yield);

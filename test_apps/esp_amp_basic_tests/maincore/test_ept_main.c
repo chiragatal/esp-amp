@@ -45,7 +45,7 @@ TEST_CASE("main-core endpoint api test", "[esp_amp]")
         esp_amp_rpmsg_ept_t* ept = esp_amp_rpmsg_search_endpoint(rpmsg_dev, i * 2);
         TEST_ASSERT_NOT_NULL(ept);
         TEST_ASSERT_EQUAL_HEX32(ept, esp_amp_rpmsg_rebind_endpoint(rpmsg_dev, i * 2, NULL, NULL));
-        TEST_ASSERT_EQUAL_HEX32(ept, esp_amp_rpmsg_del_endpoint(rpmsg_dev, i * 2));
+        TEST_ASSERT_EQUAL_HEX32(ept, esp_amp_rpmsg_delete_endpoint(rpmsg_dev, i * 2));
         TEST_ASSERT_NULL(esp_amp_rpmsg_rebind_endpoint(rpmsg_dev, i * 2, NULL, NULL));
         free(ept);
     }
@@ -63,7 +63,7 @@ TEST_CASE("main-core endpoint api test", "[esp_amp]")
     for (int i = 31; i >= 0; i--) {
         esp_amp_rpmsg_ept_t* ept = esp_amp_rpmsg_search_endpoint(rpmsg_dev, i);
         TEST_ASSERT_NOT_NULL(ept);
-        TEST_ASSERT_EQUAL_HEX32(ept, esp_amp_rpmsg_del_endpoint(rpmsg_dev, i));
+        TEST_ASSERT_EQUAL_HEX32(ept, esp_amp_rpmsg_delete_endpoint(rpmsg_dev, i));
         free(ept);
     }
 

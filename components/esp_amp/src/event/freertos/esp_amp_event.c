@@ -7,10 +7,6 @@
 #include "sdkconfig.h"
 #include "string.h"
 #include "esp_attr.h"
-#include "esp_amp.h"
-#include "esp_amp_sw_intr.h"
-#include "esp_amp_platform.h"
-#include "esp_amp_log.h"
 
 #ifdef __cplusplus
 #include <atomic>
@@ -24,6 +20,11 @@ using std::atomic_uint;
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
+
+#include "esp_amp_sw_intr.h"
+#include "esp_amp_platform.h"
+#include "esp_amp_log.h"
+#include "esp_amp_sys_info.h"
 #include "esp_amp_event.h"
 
 #define TAG "event"

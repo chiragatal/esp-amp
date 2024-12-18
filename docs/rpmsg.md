@@ -22,7 +22,7 @@ Similar to `TCP/IP` communication, RPMsg also has concepts of device (processor)
 
 #### 1. Send data without copy
 
-Thanks to the nature of shared memory, sending data using rpmsg without copy is possible and recommended. To achieve this, `esp_amp_rpmsg_create_message(_from_isr)` should be firstly called by the **sender**, which will reserve one rpmsg buffer internally and return its pointer. After successfully getting the buffer pointer, in-place read/write can be performed. When everything is done, `esp_amp_rpmsg_send_nocopy(_from_isr)` can be invoked to send this exact rpmsg buffer to the other side. Note, these two APIs should always be called in pair. Otherwise, undefined behavior or buffer leak (similar to memory leak) can happen. The procedure is shown as the following figure:
+Thanks to the nature of shared memory, sending data using rpmsg without copy is possible and recommended. To achieve this, `esp_amp_rpmsg_create_message()` should be firstly called by the **sender**, which will reserve one rpmsg buffer internally and return its pointer. After successfully getting the buffer pointer, in-place read/write can be performed. When everything is done, `esp_amp_rpmsg_send_nocopy()` can be invoked to send this exact rpmsg buffer to the other side. Note, these two APIs should always be called in pair. Otherwise, undefined behavior or buffer leak (similar to memory leak) can happen. The procedure is shown as the following figure:
 
 ![image](./imgs/rpmsg_api_flow.png)
 
@@ -30,7 +30,7 @@ For more details about corresponding APIs, please refer to the **Usage** section
 
 #### 2. Send data with copy
 
-Under some circumstances, copying and sending data in one function call is preferred. In this case, just invoke `esp_amp_rpmsg_send(_from_isr)` with data to be sent is enough. In other words, `esp_amp_rpmsg_send(_from_isr)` should be used standalone, WITHOUT calling `esp_amp_rpmsg_create_message(_from_isr)`. Otherwise, buffer leak(similar to memory leak) can happen. The procedure is shown as the following figure:
+Under some circumstances, copying and sending data in one function call is preferred. In this case, just invoke `esp_amp_rpmsg_send()` with data to be sent is enough. In other words, `esp_amp_rpmsg_send()` should be used standalone, WITHOUT calling `esp_amp_rpmsg_create_message()`. Otherwise, buffer leak(similar to memory leak) can happen. The procedure is shown as the following figure:
 
 ![image](./imgs/rpmsg_copy_api_flow.png)
 
@@ -66,9 +66,9 @@ If you set `poll` to `false`(which means interrupt mechanism will be used on the
 
 Besides, `esp_amp_rpmsg_intr_enable` **SHOULD BE** manually invoked after initialization on the core where interrupt mechanism is used.
 
-### Create Endpoint
+### Endpoint Creation and Deletion
 
-Endpoint can be dynamically created/deleted/rebound on the specific core. However, all endpoint APIs shown below MUST NOT be invoked from `ISR context`:
+Endpoint can be dynamically created/deleted/rebound on the specific core.
 
 ```c
 esp_amp_rpmsg_ept_t* esp_amp_rpmsg_create_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr, esp_amp_ept_cb_t ept_rx_cb, void* ept_rx_cb_data, esp_amp_rpmsg_ept_t* ept_ctx);
@@ -109,19 +109,13 @@ Search for an endpoint specified with `ept_addr`. This API will return `NULL` if
 To achieve this, the following API should be firstly called by the **sender**, which will reserve one rpmsg buffer internally and return its pointer:
 
 ```c
-/* For task/BM context */
 void* esp_amp_rpmsg_create_message(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t nbytes, uint16_t flags);
-/* For ISR context */
-void* esp_amp_rpmsg_create_message_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t nbytes, uint16_t flags);
 ```
 
 After successfully getting the buffer pointer, in-place read/write can be performed. When everything is done, the following API should be invoked to send this rpmsg buffer to the other side:
 
 ```c
-/* For task/BM context */
 int esp_amp_rpmsg_send_nocopy(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_rpmsg_ept_t* ept, uint16_t dst_addr, void* data, uint16_t data_len);
-/* For ISR context */
-int esp_amp_rpmsg_send_nocopy_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_rpmsg_ept_t* ept, uint16_t dst_addr, void* data, uint16_t data_len);
 ```
 
 The procedure is shown in the **Design** section.
@@ -131,32 +125,26 @@ The procedure is shown in the **Design** section.
 In this case, just invoke the following API with data to be sent is enough:
 
 ```c
-/* For task/BM context */
 int esp_amp_rpmsg_send(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_rpmsg_ept_t* ept, uint16_t dst_addr, void* data, uint16_t data_len);
-/* For ISR context */
-int esp_amp_rpmsg_send_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_rpmsg_ept_t* ept, uint16_t dst_addr, void* data, uint16_t data_len);
 ```
 
-Note, `esp_amp_rpmsg_send(_from_isr)` should be used standalone, WITHOUT calling `esp_amp_rpmsg_create_message(_from_isr)`. Otherwise, buffer leak(similar to memory leak) can happen. The procedure is shown in the **Design** section.
+Note, `esp_amp_rpmsg_send()` should be used standalone, WITHOUT calling `esp_amp_rpmsg_create_message()`. Otherwise, buffer leak(similar to memory leak) can happen. The procedure is shown in the **Design** section.
 
 ### Receive and consume data
 
 The corresponding endpoint's callback function on the receiver side will be automatically invoked(by polling or interrupt handler) when the sender successfully sends the rpmsg. A pointer to the rpmsg data buffer will be provided to the callback function for reading/writing data. After finishing using the data buffer completely, the following API **MUST BE** called on this rpmsg buffer. Otherwise, buffer leak(similar to memory leak) can happen:
 
 ```c
-/* For task/BM context */
 int esp_amp_rpmsg_destroy(esp_amp_rpmsg_dev_t* rpmsg_dev, void* msg_data);
-/* For ISR context */
-int esp_amp_rpmsg_destroy_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, void* msg_data);
 ```
 
-**Note**: `esp_amp_rpmsg_destroy(_from_isr)` MUST BE called on the receiver side after completely finishing using. Invoking this API on sender side or accessing the destroyed buffer can lead to UNDEFINED BEHAVIOR!
+**Note**: `esp_amp_rpmsg_destroy()` MUST BE called on the receiver side after completely finishing using. Invoking this API on sender side or accessing the destroyed buffer can lead to UNDEFINED BEHAVIOR!
 
 ### Deal with Buffer Overflow
 
-The buffer overflow will happen whenever the size of data to be sent(including rpmsg header) is larger than the `queue_item_size` when performing the initialization. When this happens, `esp_amp_rpmsg_create_message(_from_isr)` will return `NULL` pointer (i.e. refuse to allocate the rpmsg buffer whose size is expected to be larger than the maximum settings), `esp_amp_rpmsg_send_nocopy(_from_isr)` will return `-1` (i.e. refuse to send this rpmsg), `esp_amp_rpmsg_send(_from_isr)` will return `-1` (i.e. refuse to copy and send this rpmsg). In such case, the user should manage to split the data into several smaller pieces(packets) and then send them one by one. 
+The buffer overflow will happen whenever the size of data to be sent(including rpmsg header) is larger than the `queue_item_size` when performing the initialization. When this happens, `esp_amp_rpmsg_create_message()` will return `NULL` pointer (i.e. refuse to allocate the rpmsg buffer whose size is expected to be larger than the maximum settings), `esp_amp_rpmsg_send_nocopy()` will return `-1` (i.e. refuse to send this rpmsg), `esp_amp_rpmsg_send()` will return `-1` (i.e. refuse to copy and send this rpmsg). In such case, the user should manage to split the data into several smaller pieces(packets) and then send them one by one. 
 
-**Note**: User should ensure either BOTH of or NONE of `esp_amp_rpmsg_create_message(_from_isr)` and `esp_amp_rpmsg_send_nocopy(_from_isr)` succeed. Otherwise, buffer leak(similar to memory leak) can happen. To achieve this, there are mainly three approaches: 1. make the size allocating (creating) the rpmsg larger or equal to the size sending the data; 2. re-send a special small message using the same rpmsg buffer which can be identified by the other side when `esp_amp_rpmsg_create_message(_from_isr)` succeeds while `esp_amp_rpmsg_send_nocopy(_from_isr)` fails; 3. use `esp_amp_rpmsg_send(_from_isr)`
+**Note**: User should ensure either BOTH of or NONE of `esp_amp_rpmsg_create_message()` and `esp_amp_rpmsg_send_nocopy()` succeed. Otherwise, buffer leak(similar to memory leak) can happen. To achieve this, there are mainly three approaches: 1. make the size allocating (creating) the rpmsg larger or equal to the size sending the data; 2. re-send a special small message using the same rpmsg buffer which can be identified by the other side when `esp_amp_rpmsg_create_message()` succeeds while `esp_amp_rpmsg_send_nocopy()` fails; 3. use `esp_amp_rpmsg_send()`
 
 ## Application Examples
 

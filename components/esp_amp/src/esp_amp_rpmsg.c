@@ -27,12 +27,6 @@ static void __esp_amp_rpmsg_extend_endpoint_list(esp_amp_rpmsg_ept_t** ept_head,
     }
 }
 
-/*
-* Note:
-* This function can either be invoked from ISR/BM/TASK context
-* However, re-entrant safe is not guaranteed, which must be token into account and implemented in the higher-level
-* user MUST NOT invoke this function directly
-*/
 static esp_amp_rpmsg_ept_t* IRAM_ATTR __esp_amp_rpmsg_search_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr)
 {
     // empty endpoint list
@@ -50,12 +44,6 @@ static esp_amp_rpmsg_ept_t* IRAM_ATTR __esp_amp_rpmsg_search_endpoint(esp_amp_rp
     return NULL;
 }
 
-/*
-* Note:
-* This wrapper ensures re-entrant safe when being called from Task context.
-* It MUST BE CALLED ONLY FROM <<FreeRTOS Task context>> after initialization if rpmsg interrupt is enabled
-* <<< During initialization or When rpmsg interrupt is not enabled >>>, both Task/BM context can invoke this function
-*/
 esp_amp_rpmsg_ept_t* esp_amp_rpmsg_search_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr)
 {
     esp_amp_rpmsg_ept_t* ept_ptr;
@@ -69,10 +57,6 @@ esp_amp_rpmsg_ept_t* esp_amp_rpmsg_search_endpoint(esp_amp_rpmsg_dev_t* rpmsg_de
     return ept_ptr;
 }
 
-/*
-* This function MUST BE CALLED ONLY FROM <<FreeRTOS Task context>> after initialization if rpmsg interrupt is enabled
-* <<< During initialization or When rpmsg interrupt is not enabled >>>, both Task/BM context can invoke this function
-*/
 esp_amp_rpmsg_ept_t* esp_amp_rpmsg_create_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr, esp_amp_ept_cb_t ept_rx_cb, void* ept_rx_cb_data, esp_amp_rpmsg_ept_t* ept_ctx)
 {
     if (ept_ctx == NULL) {
@@ -98,11 +82,7 @@ esp_amp_rpmsg_ept_t* esp_amp_rpmsg_create_endpoint(esp_amp_rpmsg_dev_t* rpmsg_de
     return ept_ctx;
 }
 
-/*
-* This function MUST BE CALLED ONLY FROM <<FreeRTOS Task context>> after initialization if rpmsg interrupt is enabled
-* <<< During initialization or When rpmsg interrupt is not enabled >>>, both Task/BM context can invoke this function
-*/
-esp_amp_rpmsg_ept_t* esp_amp_rpmsg_del_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr)
+esp_amp_rpmsg_ept_t* esp_amp_rpmsg_delete_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr)
 {
 
     esp_amp_env_enter_critical();
@@ -137,10 +117,6 @@ esp_amp_rpmsg_ept_t* esp_amp_rpmsg_del_endpoint(esp_amp_rpmsg_dev_t* rpmsg_devic
     return cur_ept;
 }
 
-/*
-* This function MUST BE CALLED ONLY FROM <<FreeRTOS Task context>> after initialization if rpmsg interrupt is enabled
-* <<< During initialization or When rpmsg interrupt is not enabled >>>, both Task/BM context can invoke this function
-*/
 esp_amp_rpmsg_ept_t* esp_amp_rpmsg_rebind_endpoint(esp_amp_rpmsg_dev_t* rpmsg_device, uint16_t ept_addr, esp_amp_ept_cb_t ept_rx_cb, void* ept_rx_cb_data)
 {
 
@@ -177,10 +153,6 @@ static int IRAM_ATTR __esp_amp_rpmsg_dispatcher(esp_amp_rpmsg_t* rpmsg, esp_amp_
     return 0;
 }
 
-/*
-* If user plans to invoke this function directly, then rpmsg interrupt MUST NOT BE ENABLED
-* Re-entrant safe is not guaranteed for this function. This should be token into account when being called directly by user.
-*/
 int IRAM_ATTR esp_amp_rpmsg_poll(esp_amp_rpmsg_dev_t* rpmsg_dev)
 {
     esp_amp_rpmsg_t* rpmsg;
@@ -308,12 +280,6 @@ int esp_amp_rpmsg_sub_init(esp_amp_rpmsg_dev_t* rpmsg_dev, bool notify, bool pol
 }
 #endif
 
-/*
-* Note: This function is re-entrant safe and MUST BE CALLED ONLY FROM:
-* 1. FreeRTOS Task context
-* 2. BM context with rpmsg interrupt disabled
-* 3. BM context with rpmsg interrupt enabled but `esp_amp_rpmsg_create_message_from_isr` will never be called
-*/
 void* esp_amp_rpmsg_create_message(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t nbytes, uint16_t flags)
 {
     uint32_t rpmsg_size = nbytes + offsetof(esp_amp_rpmsg_t, msg_data);
@@ -338,39 +304,6 @@ void* esp_amp_rpmsg_create_message(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t nbyt
     return (void*)((uint8_t*)(rpmsg) + offsetof(esp_amp_rpmsg_t, msg_data));
 }
 
-
-/*
-* Note: This function MUST BE CALLED ONLY FROM
-* 1. FreeRTOS ISR context
-* 2. ISR context in BM environment but `esp_amp_rpmsg_create_message` will never be called
-*/
-void* IRAM_ATTR esp_amp_rpmsg_create_message_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, uint32_t nbytes, uint16_t flags)
-{
-    uint32_t rpmsg_size = nbytes + offsetof(esp_amp_rpmsg_t, msg_data);
-    esp_amp_rpmsg_t* rpmsg;
-    if (rpmsg_size >= (uint32_t)(1) << 16) {
-        return NULL;
-    }
-
-    int ret = rpmsg_dev->queue_ops.q_tx_alloc(rpmsg_dev->tx_queue, (void**)(&rpmsg), rpmsg_size);
-
-    if (rpmsg == NULL || ret == -1) {
-        return NULL;
-    }
-
-    rpmsg->msg_head.data_flags = flags;
-    rpmsg->msg_head.data_len = nbytes;
-
-    return (void*)((uint8_t*)(rpmsg) + offsetof(esp_amp_rpmsg_t, msg_data));
-}
-
-/*
-* This function should be called either from:
-* 1. FreeRTOS Task context
-* 2. BM context with rpmsg interrupt disabled
-* 3. BM context with rpmsg interrupt enabled but `esp_amp_rpmsg_send_from_isr` will never be called
-* This function will return immediately without block
-*/
 int esp_amp_rpmsg_send(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_rpmsg_ept_t* ept, uint16_t dst_addr, void* data, uint16_t data_len)
 {
 
@@ -391,37 +324,6 @@ int esp_amp_rpmsg_send(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_rpmsg_ept_t* ept,
     return esp_amp_rpmsg_send_nocopy(rpmsg_dev, ept, dst_addr, buffer, data_len);
 }
 
-/*
-* This function should be called either from:
-* 1. ISR context in FreeRTOS environment
-* 2. ISR context in BM environment when user can ensure that `esp_amp_rpmsg_send` will not be called in BM context
-*/
-int IRAM_ATTR esp_amp_rpmsg_send_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_rpmsg_ept_t* ept, uint16_t dst_addr, void* data, uint16_t data_len)
-{
-    if (data == NULL || data_len == 0) {
-        return -1;
-    }
-
-    void* buffer = esp_amp_rpmsg_create_message_from_isr(rpmsg_dev, data_len, ESP_AMP_RPMSG_DATA_DEFAULT);
-
-    if (buffer == NULL) {
-        return -1;
-    }
-
-    for (uint16_t i = 0; i < data_len; i++) {
-        ((uint8_t*)(buffer))[i] = ((uint8_t*)(data))[i];
-    }
-
-    return esp_amp_rpmsg_send_nocopy_from_isr(rpmsg_dev, ept, dst_addr, buffer, data_len);
-}
-
-/*
-* This function should be called either from:
-* 1. FreeRTOS Task context
-* 2. BM context with rpmsg interrupt disabled
-* 3. BM context with rpmsg interrupt enabled but `esp_amp_rpmsg_send_nocopy_from_isr` will never be called
-* This function will return immediately without block and should never fail
-*/
 int esp_amp_rpmsg_send_nocopy(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_rpmsg_ept_t* ept, uint16_t dst_addr, void* data, uint16_t data_len)
 {
     esp_amp_rpmsg_t* rpmsg = (esp_amp_rpmsg_t*)((uint8_t*)(data) - offsetof(esp_amp_rpmsg_t, msg_data));
@@ -438,28 +340,6 @@ int esp_amp_rpmsg_send_nocopy(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_rpmsg_ept_
     return ret;
 }
 
-/*
-* This function should be called either from:
-* 1. ISR context in FreeRTOS environment
-* 2. ISR context in BM environment when user can ensure that `esp_amp_rpmsg_send_nocopy` will not be called in BM context
-*/
-int IRAM_ATTR esp_amp_rpmsg_send_nocopy_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, esp_amp_rpmsg_ept_t* ept, uint16_t dst_addr, void* data, uint16_t data_len)
-{
-    esp_amp_rpmsg_t* rpmsg = (esp_amp_rpmsg_t*)((uint8_t*)(data) - offsetof(esp_amp_rpmsg_t, msg_data));
-    rpmsg->msg_head.data_len = data_len;
-    rpmsg->msg_head.dst_addr = dst_addr;
-    rpmsg->msg_head.src_addr = ept->addr;
-
-    return rpmsg_dev->queue_ops.q_tx(rpmsg_dev->tx_queue, rpmsg, rpmsg_dev->tx_queue->max_item_size);
-}
-
-/*
-* This function should be called either from:
-* 1. FreeRTOS Task context
-* 2. BM context with rpmsg interrupt disabled
-* 3. BM context with rpmsg interrupt enabled but `esp_amp_rpmsg_destroy_from_isr` will never be called
-* This function will return immediately without block and should never fail
-*/
 int esp_amp_rpmsg_destroy(esp_amp_rpmsg_dev_t* rpmsg_dev, void* msg_data)
 {
     esp_amp_rpmsg_t* rpmsg = (esp_amp_rpmsg_t*)((uint8_t*)(msg_data) - offsetof(esp_amp_rpmsg_t, msg_data));
@@ -473,25 +353,7 @@ int esp_amp_rpmsg_destroy(esp_amp_rpmsg_dev_t* rpmsg_dev, void* msg_data)
     return ret;
 }
 
-/*
-* This function returns the maximum size of the rpmsg payload
-* Safe to call from both BM/Task/ISR context
-*/
 uint16_t IRAM_ATTR esp_amp_rpmsg_get_max_size(esp_amp_rpmsg_dev_t* rpmsg_dev)
 {
     return (uint16_t)(rpmsg_dev->tx_queue->max_item_size - offsetof(esp_amp_rpmsg_t, msg_data));
 }
-
-/*
-* This function should be called either from:
-* 1. ISR context in FreeRTOS environment
-* 2. ISR context in BM environment when user can ensure that `esp_amp_rpmsg_destroy` will not be called in BM context
-*/
-int esp_amp_rpmsg_destroy_from_isr(esp_amp_rpmsg_dev_t* rpmsg_dev, void* msg_data)
-{
-
-    esp_amp_rpmsg_t* rpmsg = (esp_amp_rpmsg_t*)((uint8_t*)(msg_data) - offsetof(esp_amp_rpmsg_t, msg_data));
-
-    return rpmsg_dev->queue_ops.q_rx_free(rpmsg_dev->rx_queue, rpmsg);
-}
-

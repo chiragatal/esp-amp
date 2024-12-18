@@ -149,6 +149,10 @@ To coordinate between two cores, we choose to interprete the bitmap as pending e
 
 If `wait()` and `clear()` are not performed in atomic manner, chances are that remote core sets bits right after `wait()` and before `clear()`. To avoid missing any event like this, it is suggested to set `clear_on_exit=true` when using `wait()`/`poll()` if you want to clear the bits in `bit_mask` when the wait condition is met.
 
+### Sdkconfig Options
+
+* `CONFIG_ESP_AMP_EVENT_TABLE_LEN`: Number of OS-specific event handles ESP-AMP events can bind to (excluding reserved ones).
+
 ## Application Example
 
 * [event](../examples/event): demonstrates how to create ESP-AMP events and use them to synchronize between two cores.

@@ -37,7 +37,7 @@ int IRAM_ATTR rpmsg_test_ept_isr_ctx(void* msg_data, uint16_t data_len, uint16_t
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     rpmsg_test_pars_t* pars = (rpmsg_test_pars_t*)rx_cb_data;
     if (xQueueSendFromISR(pars->q_handler, &msg_data, &xHigherPriorityTaskWoken) != pdTRUE) {
-        esp_amp_rpmsg_destroy_from_isr(pars->rpmsg_dev, msg_data);
+        esp_amp_rpmsg_destroy(pars->rpmsg_dev, msg_data);
     }
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 

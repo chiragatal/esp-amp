@@ -1,8 +1,10 @@
-set(srcs "")
+set(srcs
+    "panic_handler.c"
+    "syscalls.c"
+)
 
 if(IDF_TARGET STREQUAL "esp32p4")
     list(APPEND srcs
-        "esp32p4/panic_handler.c"
         "esp32p4/portasm.S"
         "esp32p4/start.S"
         "esp32p4/startup.c"

@@ -14,22 +14,24 @@
 /* Bit to clear in mstatus to disable the FPU */
 #define CSR_MSTATUS_FPU_DISABLE     (3 << 13)
 
-.macro add_intr_counter imm=1
-    la t0, _bm_intr_level_count
+    .section .data,"aw"
+    .align 3
+    .global fpu_ctx
+fpu_ctx:
+    .space 160
+
+    .align 2
+    .global _bm_intr_nesting_cnt
+.align 3
+_bm_intr_nesting_cnt:
+    .word 0
+
+.macro add_intr_nesting imm=1
+    la t0, _bm_intr_nesting_cnt
     lw t1, 0(t0)
     addi t1, t1, \imm
     sw t1, 0(t0)
 .endm
-
-.section .data
-.global fpu_ctx
-.global _bm_intr_level_count
-.align 3
-fpu_ctx: .space 160
-_bm_intr_level_count:
-    .word 0
-
-
 
 .macro fpu_save_regs frame
     la      \frame, fpu_ctx
@@ -140,7 +142,7 @@ _bm_intr_level_count:
     .global fpu_ctx
     .type rtos_int_enter, @function
 rtos_int_enter:
-    add_intr_counter 1
+    add_intr_nesting 1
     #if CONFIG_ESP_AMP_SUBCORE_ENABLE_HW_FPU
     #if CONFIG_ESP_AMP_SUBCORE_ENABLE_HW_FPU_IN_ISR
     fpu_save_regs t0
@@ -153,13 +155,13 @@ rtos_int_enter:
     .global rtos_int_exit
     .type rtos_int_exit, @function
 rtos_int_exit:
-    add_intr_counter -1
     #if CONFIG_ESP_AMP_SUBCORE_ENABLE_HW_FPU
     fpu_enable t0
     #if CONFIG_ESP_AMP_SUBCORE_ENABLE_HW_FPU_IN_ISR
     fpu_restore_regs t0
     #endif
     #endif
+    add_intr_nesting -1
     ret
 
     .global rtos_save_pie_coproc

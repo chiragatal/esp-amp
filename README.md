@@ -80,8 +80,8 @@ Console log will be printed on HP-UART and can be viewed via serial monitor. For
 
 The following tips work for both ESP32-P4 and ESP32-C6:
 
-* Stay with static memory allocation: Subcore firmware does not support dynamic memory allocation. Heap section is not specified in linker script and the entire space above `.bss` section is reserved for stack. Calling malloc() will always fail.
-* Reserve enough stack space. Stack is allocated from LP RAM on ESP32-C6 and HP RAM on ESP32-P4. In ESP-AMP, stack space starts from the end of `.bss` section. Stack smashing protection mechanism is not supported on subcore. When the stack grows, it may overwrite `.bss` section without any warning and cause unpredictable results. Therefore, it is recommended to reserve enough stack space for subcore application. Sdkconfig option `ESP_AMP_SUBCORE_STACK_SIZE_MIN` can be used to specify the minimum stack size. If the remaining memory space is insufficient to allocate the stack, the build will fail.
+* Dynamic memory allocation is supported but not enabled by default. To enable it, set `CONFIG_ESP_AMP_SUBCORE_ENABLE_HEAP=y`. Heap size can be configured via `CONFIG_ESP_AMP_SUBCORE_HEAP_SIZE`.
+* Reserve enough stack space. Stack is allocated from LP RAM on ESP32-C6 and HP RAM on ESP32-P4. Stack smashing protection mechanism is not supported on subcore. When the stack grows, it may overwrite heap or `.bss` section without any warning and cause unpredictable results. Therefore, it is recommended to reserve enough stack space for subcore application. Sdkconfig option `ESP_AMP_SUBCORE_STACK_SIZE_MIN` can be used to specify the minimum stack size. If the remaining memory space is insufficient to allocate the stack, the build will fail.
 
 If you are developing subcore firmware for ESP32-C6, please refer to the following tips:
 
@@ -106,7 +106,7 @@ ESP-AMP is still under active development. The following limitations exist at pr
 
 ### Why not use OpenAMP?
 
-[OpenAMP](https://github.com/OpenAMP/open-amp) is a popular open source framework for building AMP applications on SoCs with multiple processing cores. In fact, ESP-AMP is inspired by OpenAMP. The main reason that we create OpenAMP instead of reusing OpenAMP is the need of an AMP framework with small footprint. Abundant features in OpenAMP not only increase the complexity for use, but also lead to bloating code size. This makes OpenAMP difficult to port to systems with limited resources, especially ESP32C6 with only 16KB RTC RAM as default internal RAM of LP core. In contrast, ESP-AMP is designed to be lightweight and efficient.
+[OpenAMP](https://github.com/OpenAMP/open-amp) is a popular open source framework for building AMP applications on SoCs with multiple processing cores. In fact, ESP-AMP is inspired by OpenAMP. The main reason that we create ESP-AMP instead of reusing OpenAMP is the demand of an AMP framework with small footprint. Abundant features in OpenAMP not only increase the complexity for use, but also lead to bloating code size. This makes OpenAMP difficult to port to systems with limited resources, especially LP core on ESP32-C6 with only 16KB RTC RAM as default internal RAM. ESP-AMP is designed to be lightweight with enough features to support AMP applications.
 
 ### Can RTCRAM be used as shared memory?
 

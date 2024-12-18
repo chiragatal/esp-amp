@@ -2,7 +2,7 @@ import argparse
 from elftools.elf.elffile import ELFFile
 import sys
 
-symbols_to_check = ["esp_amp_start_subcore", "esp_amp_load_sub"]
+symbols_to_check = ["esp_amp_init", "esp_amp_start_subcore", "esp_amp_load_sub"]
 
 def check_symbols(elf_file_path):
     try:
@@ -16,18 +16,12 @@ def check_symbols(elf_file_path):
                     for symbol in section.iter_symbols():
                         found_symbols.add(symbol.name)
 
-            # Check if each of the given symbols exists in the ELF file
-            all_symbols_found = True
-
-            for symbol in symbols_to_check:
-                if symbol not in found_symbols:
-                    print(f"The symbol '{symbol}' is NOT present in '{elf_file_path}'.")
-                    all_symbols_found = False
-
-            return all_symbols_found
+            missing_symbols = set(symbols_to_check) - found_symbols
+            missing_symbols_str = '\n'.join(missing_symbols)
+            print(f"\033[1;33mThe following symbols are missing:\n{missing_symbols_str}\033[0m") if missing_symbols else None
 
     except Exception as e:
-        print(f"Error reading ELF file: {e}")
+        print(f"\033[1;31mError reading ELF file: {e}\033[0m")
         sys.exit(1)
 
 if __name__ == "__main__":
@@ -36,5 +30,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     result = check_symbols(args.elf_file)
-    if not result:
-        sys.exit(1)

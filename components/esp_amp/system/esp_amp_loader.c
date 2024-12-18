@@ -7,7 +7,6 @@
 #include "sdkconfig.h"
 #include "hal/misc.h"
 #include "esp_err.h"
-#include "esp_amp_log.h"
 #include "esp_assert.h"
 #include "esp_partition.h"
 #include "esp_image_format.h"
@@ -21,14 +20,15 @@
 #include "ulp_lp_core_lp_timer_shared.h"
 #endif /* CONFIG_ESP_AMP_SUBCORE_TYPE_LP_CORE */
 
-#include "esp_amp_loader.h"
 #include "esp_amp.h"
+#include "esp_amp_log.h"
+#include "esp_amp_loader.h"
 #include "esp_amp_mem_priv.h"
 
 #if CONFIG_ESP_AMP_SUBCORE_TYPE_LP_CORE
 #if ESP_ROM_HAS_LP_ROM
 extern uint32_t _rtc_ulp_memory_start;
-static uint32_t* ulp_base_address = (uint32_t*)&_rtc_ulp_memory_start;
+static uint32_t* ulp_base_address = (uint32_t*) &_rtc_ulp_memory_start;
 #else
 static uint32_t* ulp_base_address = RTC_SLOW_MEM;
 #endif
@@ -157,7 +157,7 @@ esp_err_t esp_amp_load_sub(const void* sub_bin)
 
     if (heap_caps_add_region(unused_reserved_dram_start, (intptr_t)SUBCORE_USE_HP_MEM_BOUNDARY) == ESP_OK) {
         ESP_AMP_LOGI(TAG, "Give unused reserved dram region (%p - %p) back to main-core heap",
-                 (void *)unused_reserved_dram_start, (void *)SUBCORE_USE_HP_MEM_BOUNDARY);
+                     (void *)unused_reserved_dram_start, (void *)SUBCORE_USE_HP_MEM_BOUNDARY);
     }
 #endif
 

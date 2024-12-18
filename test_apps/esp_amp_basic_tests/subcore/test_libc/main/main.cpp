@@ -83,10 +83,82 @@ void test_string() {
     atomic_fetch_or(test_bits, TEST_STRING);
 }
 
-void test_memory() {
-    // Test malloc fails
-    int* ptr = (int*)malloc(5 * sizeof(int));
+#if CONFIG_ESP_AMP_SUBCORE_ENABLE_HEAP
+void test_basic_allocation() {
+    for (int i=1; i<=10; i++) {
+        void *ptr = malloc(i * 16 * sizeof(int));
+        assert(ptr != NULL);
+        free(ptr);
+    }
+}
+
+void test_zero_allocation() {
+    void *ptr = malloc(0);
+    free(ptr);
+
+    ptr = calloc(0, 10);
+    free(ptr);
+}
+
+void test_large_allocation() {
+    void *ptr = malloc(INT32_MAX / 2);
     assert(ptr == NULL);
+    free(ptr);
+}
+
+void test_double_free() {
+    void *ptr = malloc(100);
+    assert(ptr != NULL);
+    free(ptr);
+    free(ptr);
+}
+
+void test_realloc() {
+    void *ptr = malloc(100);
+    assert(ptr != NULL);
+
+    // Shrink memory
+    void *new_ptr = realloc(ptr, 50);
+    assert(new_ptr != NULL);
+
+    // Expand memory
+    new_ptr = realloc(new_ptr, 200);
+    assert(new_ptr != NULL);
+
+    // Free memory
+    new_ptr = realloc(new_ptr, 0);
+    assert(new_ptr == NULL);
+}
+
+void test_calloc_initialization() {
+    size_t num_elements = 10;
+    size_t element_size = sizeof(int);
+
+    int *arr = (int *)calloc(num_elements, element_size);
+    assert(arr != NULL);
+
+    for (size_t i = 0; i < num_elements; i++) {
+        assert(arr[i] == 0);
+    }
+
+    free(arr);
+}
+#endif /* CONFIG_ESP_AMP_SUBCORE_ENABLE_HEAP */
+
+void test_memory() {
+
+    // Test malloc
+#if CONFIG_ESP_AMP_SUBCORE_ENABLE_HEAP
+    test_basic_allocation();
+    test_zero_allocation();
+    test_large_allocation();
+    test_double_free();
+    test_realloc();
+    test_calloc_initialization();
+#else
+    void *ptr = malloc(100);
+    assert(ptr == NULL);
+#endif
 
     // Test memset
     char buffer[10];

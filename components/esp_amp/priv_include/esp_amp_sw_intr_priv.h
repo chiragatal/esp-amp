@@ -6,14 +6,9 @@
 
 #pragma once
 
-#include "sdkconfig.h"
-#include "stdbool.h"
-
 #ifdef __cplusplus
 #include <atomic>
-using std::atomic_bool;
 using std::atomic_int;
-using std::atomic_uint;
 #else
 #include <stdatomic.h>
 #endif

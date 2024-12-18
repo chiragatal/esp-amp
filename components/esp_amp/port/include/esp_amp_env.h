@@ -12,23 +12,29 @@ extern "C" {
 
 /**
  * @brief Enter critical section
+ *
+ * @note This function can be used to protect critical sections of code.
+ * Nested critical section is allowed. The critical section will be
+ * exited when the nesting count reaches 0.
  */
-void esp_amp_env_enter_critical();
-
-/**
- * @brief Enter critical section in ISR
- */
-void esp_amp_env_enter_critical_isr();
+void esp_amp_env_enter_critical(void);
 
 /**
  * @brief Exit critical section
+ *
+ * @note This function can be used to exit critical sections of code.
+ * Ensure each call to esp_amp_env_enter_critical() is matched by a
+ * call to esp_amp_env_exit_critical().
  */
-void esp_amp_env_exit_critical();
+void esp_amp_env_exit_critical(void);
 
 /**
- * @brief Exit critical section in ISR
+ * @brief Check if the current context is in interrupt service routine
+ *
+ * @retval 0 if the current context is not in interrupt service routine
+ * @retval 1 if the current context is in interrupt service routine
  */
-void esp_amp_env_exit_critical_isr();
+int esp_amp_env_in_isr(void);
 
 #ifdef __cplusplus
 }

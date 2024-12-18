@@ -7,6 +7,12 @@
 #include "riscv/rvruntime-frames.h"
 #include "soc/soc_caps.h"
 
+    .section .data,"aw"
+    .align 2
+    .global _bm_intr_nesting_cnt
+_bm_intr_nesting_cnt:
+    .word 0
+
     .equ SAVE_REGS, 32
     .equ CONTEXT_SIZE, (SAVE_REGS * 4)
 /* Macro which first allocates space on the stack to save general
@@ -51,8 +57,8 @@
     sw   t0, RV_STK_MEPC(sp)
 .endm
 
-.macro add_intr_counter imm=1
-    la t0, _bm_intr_level_count
+.macro add_intr_nesting imm=1
+    la t0, _bm_intr_nesting_cnt
     lw t1, 0(t0)
     addi t1, t1, \imm
     sw t1, 0(t0)
@@ -99,14 +105,6 @@
     csrw    mepc, t0
 .endm
 
-/* _bm_intr_level_count: global interrupt level counter */
-.section .data
-.global _bm_intr_level_count
-.align 3
-_bm_intr_level_count:
-    .word 0
-
-
 /* _panic_handler: handle all exception */
 	.section	.text.handlers,"ax"
 	.global _panic_handler
@@ -130,12 +128,10 @@ _panic_handler:
     csrr  t0, mtval
     sw    t0, RV_STK_MTVAL(sp)
 
-    add_intr_counter 1
-
     csrr	a1, mcause				/* exception cause */
 
     mv	a0, sp					    /* RvExcFrame *regs */
-    call ulp_lp_core_panic_handler
+    call panic_handler
 _end:
     j _end /* loop forever */
 
@@ -151,11 +147,9 @@ _interrupt_handler:
     save_general_regs
     save_mepc
 
-    add_intr_counter 1
-
+    add_intr_nesting 1
     call ulp_lp_core_intr_handler
-
-    add_intr_counter -1
+    add_intr_nesting -1
 
     /* restore registers & mepc from stack */
     restore_mepc

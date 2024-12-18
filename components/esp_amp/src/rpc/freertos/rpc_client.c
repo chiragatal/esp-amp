@@ -188,13 +188,13 @@ static int esp_amp_rpc_client_isr(void *pkt_in_buf, uint16_t pkt_in_size, uint16
 
     if (pkt_in_size < sizeof(esp_amp_rpc_pkt_t)) {
         ESP_AMP_DRAM_LOGE(TAG, "incomplete pkt");
-        esp_amp_rpmsg_destroy_from_isr(esp_amp_rpc_client.rpmsg_dev, pkt_in_buf);
+        esp_amp_rpmsg_destroy(esp_amp_rpc_client.rpmsg_dev, pkt_in_buf);
         return 0;
     }
 
     esp_amp_rpc_pkt_t *pkt_in = (esp_amp_rpc_pkt_t *)pkt_in_buf;
     if (xQueueSendFromISR(esp_amp_rpc_client.rx_q, &pkt_in, &need_yield) != pdTRUE) {
-        esp_amp_rpmsg_destroy_from_isr(esp_amp_rpc_client.rpmsg_dev, pkt_in_buf);
+        esp_amp_rpmsg_destroy(esp_amp_rpc_client.rpmsg_dev, pkt_in_buf);
         ESP_AMP_DRAM_LOGE(TAG, "rx_q full. drop pkt(%u)", pkt_in->req_id);
     }
 
@@ -304,7 +304,7 @@ esp_amp_rpc_status_t esp_amp_rpc_client_deinit(void)
 
     if (ret == ESP_AMP_RPC_STATUS_OK) {
         if (esp_amp_rpc_client.rpmsg_dev) {
-            esp_amp_rpmsg_del_endpoint(esp_amp_rpc_client.rpmsg_dev, esp_amp_rpc_client.client_addr);
+            esp_amp_rpmsg_delete_endpoint(esp_amp_rpc_client.rpmsg_dev, esp_amp_rpc_client.client_addr);
             esp_amp_rpc_client.rpmsg_dev = NULL;
         }
         if (esp_amp_rpc_client.pending_list.mutex) {

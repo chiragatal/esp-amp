@@ -7,7 +7,6 @@ set(ulp_lp_core_srcs
 
     "${IDF_PATH}/components/ulp/lp_core/lp_core/lp_core_uart.c"
     "${IDF_PATH}/components/ulp/lp_core/lp_core/lp_core_print.c"
-    "${IDF_PATH}/components/ulp/lp_core/lp_core/lp_core_panic.c"
     "${IDF_PATH}/components/ulp/lp_core/lp_core/lp_core_interrupt.c"
     "${IDF_PATH}/components/ulp/lp_core/lp_core/lp_core_i2c.c"
 

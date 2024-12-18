@@ -8,7 +8,6 @@
 
 #include "stdint.h"
 #include "esp_amp_arch.h"
-#include "esp_amp_platform_log.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,18 +52,54 @@ uint32_t esp_amp_platform_get_time_ms(void);
 
 
 /**
- * Disable all interrupts on the current core
+ * Disable all interrupts on local core
  *
- * On RISC-V platform, this is done by clearing MIE bit of MSTATUS
+ * @note to protect data in critical section, use esp_amp_env_enter_critical()
+ * and esp_amp_env_exit_critical() instead.
  */
 void esp_amp_platform_intr_disable(void);
 
+
 /**
- * Enable interrupts on the current core
+ * Enable interrupts on local core
  *
- * On RISC-V platform, this is done by setting MIE bit of MSTATUS
+ * @note to protect data in critical section, use esp_amp_env_enter_critical()
+ * and esp_amp_env_exit_critical() instead.
  */
 void esp_amp_platform_intr_enable(void);
+
+
+/**
+ * Enable software interrupt on local core
+ */
+void esp_amp_platform_sw_intr_enable(void);
+
+
+/**
+ * Disable software interrupt on local core
+ */
+void esp_amp_platform_sw_intr_disable(void);
+
+
+/**
+ * Install software interrupt
+ *
+ * @retval 0 if successful, -1 if failed
+ */
+int esp_amp_platform_sw_intr_install(void);
+
+
+/**
+ * Trigger software interrupt on remote core
+ */
+void esp_amp_platform_sw_intr_trigger(void);
+
+
+/**
+ * Clear software interrupt triggered by remote core
+ */
+void esp_amp_platform_sw_intr_clear(void);
+
 
 /**
  * Memory barrier
@@ -73,24 +108,6 @@ static inline void esp_amp_platform_memory_barrier(void)
 {
     esp_amp_arch_memory_barrier();
 }
-
-#if IS_MAIN_CORE
-
-/**
- * Start subcore
- *
- * @retval 0 start subcore successfully
- * @retval -1 failed to start subcore
- */
-int esp_amp_platform_start_subcore(void);
-
-
-/**
- * Stop subcore
- */
-void esp_amp_platform_stop_subcore(void);
-
-#endif /* IS_MAIN_CORE */
 
 #ifdef __cplusplus
 }

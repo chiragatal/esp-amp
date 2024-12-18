@@ -75,7 +75,6 @@ Subcore applications can register and unregister software interrupt handlers in 
 
 Unlike the return value of a software interrupt handler in maincore application that indicates a necessary context switch, return value in subcore applications is ignored. 
 
-
 ### Sdkconfig Options
 
 * `CONFIG_ESP_AMP_SW_INTR_HANDLER_TABLE_LEN`: By default, up to 8 software interrupt handlers can be registered. Increase this will allow more handlers but introduce more latency as well.

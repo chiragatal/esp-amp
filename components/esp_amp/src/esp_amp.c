@@ -5,7 +5,6 @@
 */
 
 #include "esp_amp.h"
-#include "esp_amp_platform.h"
 
 int esp_amp_init(void)
 {
@@ -20,15 +19,3 @@ int esp_amp_init(void)
 
     return 0;
 }
-
-#if IS_MAIN_CORE
-int esp_amp_start_subcore(void)
-{
-    return esp_amp_platform_start_subcore();
-}
-
-void esp_amp_stop_subcore(void)
-{
-    esp_amp_platform_stop_subcore();
-}
-#endif /* IS_MAIN_CORE */

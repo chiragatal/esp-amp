@@ -11,7 +11,6 @@
 #include "esp_attr.h"
 #include "event.h"
 #include "sys_info.h"
-#include "esp_amp_queue.h"
 #include "esp_amp_platform.h"
 
 int notify_func(void* args)

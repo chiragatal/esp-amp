@@ -14,7 +14,6 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_amp.h"
-#include "esp_amp_queue.h"
 
 #include "event.h"
 #include "sys_info.h"

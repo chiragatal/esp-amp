@@ -33,8 +33,6 @@ By default, SysInfo supports up to 16 entries. At present, ESP-AMP internally ta
     SYS_INFO_ID_VQUEUE_BUFFER = 0xff05, /* reserved for virtqueue */
 ```
 
-If you need more SysInfo entries, increase `CONFIG_ESP_AMP_SYS_INFO_ENTRY` via sdkconfig.
-
 ### Maincore
 
 Maincore application can allocate a block of shared memory via SysInfo. The following code snippet shows how to allocate a block of shared memory and initialize the content to indicate a person's name and age.
@@ -74,6 +72,5 @@ printf("Person age: %d\n", person->age);
 
 ### Sdkconfig Options
 
-* `CONFIG_ESP_AMP_SHARED_MEM_LOC`: Location of shared memory. Shared memory can be put in DRAM (HP RAM) by setting `CONFIG_ESP_AMP_SHARED_MEM_IN_HP=y`, or in RTCRAM (LP RAM) by setting `CONFIG_ESP_AMP_SHARED_MEM_IN_LP=y`. Due to the fact that RTCRAM does not support atomic operation such as Compare-and-Swap (CAS) as well as RISC-V atomic extensions, if any atomic data type is involved in shared memory (which is true for ESP-AMP), put shared memory in HP RAM only.
-* `CONFIG_ESP_AMP_SYS_INFO_ENTRY`: This specifies the maximum number of SysInfo entries can be used by ESP-AMP project. Recall that 6 entries has been used by ESP-AMP, if `CONFIG_ESP_AMP_SYS_INFO_ENTRY=10`, only 4 entries are available for your application.
-
+* `CONFIG_ESP_AMP_SHARED_MEM_LOC`: Location of shared memory. At present only DRAM (HP RAM) is supported (`CONFIG_ESP_AMP_SHARED_MEM_IN_HP=y`). Due to the fact that RTCRAM does not support atomic operation such as Compare-and-Swap (CAS) as well as memory barrier, which is necessary for ESP-AMP, allocating shared memory from RTCRAM is disallowed in ESP-AMP.
+* `CONFIG_ESP_AMP_SHARED_MEM_SIZE`: Size of shared memory.

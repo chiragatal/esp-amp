@@ -3,26 +3,16 @@
 *
 * SPDX-License-Identifier: Apache-2.0
 */
-
-#include "esp_rom_sys.h"
-#include "esp_rom_uart.h"
+#include "stdio.h"
+#include "sdkconfig.h"
 #include "riscv/rvruntime-frames.h"
 #include "riscv/csr.h"
 
-#define LDTVAL0         0xBE8
-#define LDTVAL1         0xBE9
-#define STTVAL0         0xBF8
-#define STTVAL1         0xBF9
-#define STTVAL2         0xBFA
+#define DIM(arr) (sizeof(arr)/sizeof(*arr))
 
-static void panic_print_char_uart(const char c)
+static void panic_print_char(const char c)
 {
-    esp_rom_output_putc(c);
-}
-
-void panic_print_char(const char c)
-{
-    panic_print_char_uart(c);
+    putchar(c);
 }
 
 static void panic_print_str(const char *str)
@@ -75,6 +65,18 @@ static const char *desc[] = {
     "MSTATUS ", "MTVEC   ", "MCAUSE  ", "MTVAL   ", "MHARTID "
 };
 
+#if CONFIG_ESP_AMP_SUBCORE_TYPE_LP_CORE
+static const char *reason[] = {
+    NULL,
+    NULL,
+    "Illegal instruction",
+    "Breakpoint",
+    "Load address misaligned",
+    "Load access fault",
+    "Store address misaligned",
+    "Store access fault",
+};
+#else
 STRUCT_BEGIN
 STRUCT_FIELD(long, 4, RV_BUS_LDPC0,   ldpc0)           /* Load bus error PC register 0 */
 STRUCT_FIELD(long, 4, RV_BUS_LDTVAL0, ldtval0)         /* Load bus error access address register 0 */
@@ -92,8 +94,6 @@ static const char *extra_desc[] = {
     "LDPC0   ", "LDTVAL0 ", "LDPC1   ", "LDTVAL1 ", "STPC0   ", "STTVAL0 ", "STPC1   ", "STTVAL1 ",
     "STPC2   ", "STTVAL2 "
 };
-
-static RvExtraExcFrame extraFrame;
 
 static const char *reason[] = {
     "Instruction address misaligned",
@@ -114,17 +114,50 @@ static const char *reason[] = {
     "Store page fault",
 };
 
+#define LDTVAL0         0xBE8
+#define LDTVAL1         0xBE9
+#define STTVAL0         0xBF8
+#define STTVAL1         0xBF9
+#define STTVAL2         0xBFA
+
+static void dump_extra_regs(void)
+{
+    static RvExtraExcFrame frame;
+
+    frame.ldpc0    = RV_READ_CSR(LDPC0);
+    frame.ldtval0  = RV_READ_CSR(LDTVAL0);
+    frame.ldpc1    = RV_READ_CSR(LDPC1);
+    frame.ldtval1  = RV_READ_CSR(LDTVAL1);
+    frame.stpc0    = RV_READ_CSR(STPC0);
+    frame.sttval0  = RV_READ_CSR(STTVAL0);
+    frame.stpc1    = RV_READ_CSR(STPC1);
+    frame.sttval1  = RV_READ_CSR(STTVAL1);
+    frame.stpc2    = RV_READ_CSR(STPC2);
+    frame.sttval2  = RV_READ_CSR(STTVAL2);
+
+    panic_print_str("\n");
+    uint32_t* frame_ints = (uint32_t*)(&frame);
+    for (int x = 0; x < DIM(extra_desc); x++) {
+        if (extra_desc[x][0] != 0) {
+            const int not_last = (x + 1) % 4;
+            panic_print_str(extra_desc[x]);
+            panic_print_str(": 0x");
+            panic_print_hex(frame_ints[x]);
+            panic_print_char(not_last ? ' ' : '\n');
+        }
+    }
+}
+#endif
+
 void panic_handler(RvExcFrame *frame, int exccause)
 {
-#define DIM(arr) (sizeof(arr)/sizeof(*arr))
-
     const char *exccause_str = "Unhandled interrupt/Unknown cause";
 
     if (exccause < DIM(reason) && reason[exccause] != NULL) {
         exccause_str = reason[exccause];
     }
 
-    panic_print_str("Guru Meditation Error: SubCore panic'ed ");
+    panic_print_str("Guru Meditation Error: Subcore panic'ed ");
     panic_print_str(exccause_str);
     panic_print_str("\n");
     panic_print_str("Core 1 register dump:\n");
@@ -140,28 +173,9 @@ void panic_handler(RvExcFrame *frame, int exccause)
         }
     }
 
-    extraFrame.ldpc0    = RV_READ_CSR(LDPC0);
-    extraFrame.ldtval0  = RV_READ_CSR(LDTVAL0);
-    extraFrame.ldpc1    = RV_READ_CSR(LDPC1);
-    extraFrame.ldtval1  = RV_READ_CSR(LDTVAL1);
-    extraFrame.stpc0    = RV_READ_CSR(STPC0);
-    extraFrame.sttval0  = RV_READ_CSR(STTVAL0);
-    extraFrame.stpc1    = RV_READ_CSR(STPC1);
-    extraFrame.sttval1  = RV_READ_CSR(STTVAL1);
-    extraFrame.stpc2    = RV_READ_CSR(STPC2);
-    extraFrame.sttval2  = RV_READ_CSR(STTVAL2);
-
-    panic_print_str("\n");
-    frame_ints = (uint32_t*)(&extraFrame);
-    for (int x = 0; x < DIM(extra_desc); x++) {
-        if (extra_desc[x][0] != 0) {
-            const int not_last = (x + 1) % 4;
-            panic_print_str(extra_desc[x]);
-            panic_print_str(": 0x");
-            panic_print_hex(frame_ints[x]);
-            panic_print_char(not_last ? ' ' : '\n');
-        }
-    }
+#if CONFIG_ESP_AMP_SUBCORE_TYPE_HP_CORE
+    dump_extra_regs();
+#endif
 
     dump_stack(frame, exccause);
 

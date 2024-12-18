@@ -7,22 +7,31 @@
 #include "esp_amp_platform.h"
 #include "esp_amp_env.h"
 
+static uint32_t s_critical_nesting = 0;
+static uint32_t s_old_mstatus = 0;
+
 void esp_amp_env_enter_critical(void)
 {
-    esp_amp_platform_intr_disable();
+    uint32_t old_mstatus = RV_CLEAR_CSR(mstatus, MSTATUS_MIE);
+    /* only save mstatus when critical nesting is 0 */
+    if (s_critical_nesting++ == 0) {
+        s_old_mstatus = old_mstatus;
+    }
 }
 
 void esp_amp_env_exit_critical(void)
 {
-    esp_amp_platform_intr_enable();
+    /* only restore mstatus when critical nesting is 0 */
+    if (s_critical_nesting > 0) {
+        s_critical_nesting--;
+        if (s_critical_nesting == 0) {
+            RV_SET_CSR(mstatus, s_old_mstatus & MSTATUS_MIE);
+        }
+    }
 }
 
-void esp_amp_env_enter_critical_isr(void)
+int esp_amp_env_in_isr(void)
 {
-    esp_amp_platform_intr_disable();
-}
-
-void esp_amp_env_exit_critical_isr(void)
-{
-    esp_amp_platform_intr_enable();
+    extern bool _bm_intr_nesting_cnt;
+    return (_bm_intr_nesting_cnt > 0);
 }
