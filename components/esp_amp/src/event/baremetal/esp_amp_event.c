@@ -14,9 +14,7 @@
 
 #ifdef __cplusplus
 #include <atomic>
-using std::atomic_bool;
 using std::atomic_int;
-using std::atomic_uint;
 #else
 #include <stdatomic.h>
 #endif
@@ -41,10 +39,6 @@ uint32_t esp_amp_event_notify_by_id(uint16_t sysinfo_id, uint32_t bit_mask)
     return ret_val;
 }
 
-/**
- * wait for all: Yes
- * clear on exit: Yes
- */
 uint32_t esp_amp_event_wait_by_id(uint16_t sysinfo_id, uint32_t bit_mask, bool clear_on_exit, bool wait_for_all, uint32_t timeout_ms)
 {
     int ret = 0;

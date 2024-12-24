@@ -8,6 +8,7 @@
 #include "stdbool.h"
 #include "limits.h"
 #include "string.h"
+#include "esp_attr.h"
 
 #include "esp_amp_platform.h"
 #include "esp_amp_rpmsg.h"
@@ -16,7 +17,7 @@
 
 #define ESP_AMP_RPC_INVALID_REQ_ID 0x0
 
-#define TAG "rpc_client"
+static const DRAM_ATTR char TAG[] = "rpc_client";
 
 typedef struct {
     uint16_t req_id; /* req_id & status still needed since pkt can be freed somewhere asynchronously */

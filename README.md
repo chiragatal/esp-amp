@@ -24,7 +24,11 @@ From bottom to top, these components are:
 * RPMsg: an implementation of Remote Processor Messaging (RPMsg) protocol that enables concurrent communication streams in application. Refer to [RPMsg Doc](./docs/rpmsg.md) for more details.
 * RPC: a simple RPC framework built on top of RPMsg. Refer to [RPC Doc](./docs/rpc.md) for more details.
 
-Apart from the IPC components, ESP-AMP comes with a build system that makes it easy and flexible to build firmware for both the maincore and the subcore. The build system features:
+Besides these, ESP-AMP also provides a port layer to abstract the difference between various environment and SoCs, in order to offer a unified interface for upper layers. Refer to [Port Layer Doc](./docs/port.md) for more details.
+
+## Build System
+
+ESP-AMP comes with a build system that makes it easy and flexible to build firmware for both the maincore and the subcore. The build system features:
 
 * Standard ESP-IDF build system to build maincore firmware.
 * Two modes for building subcore firmware: unified build mode, which lets you build both the subcore and main core firmware with a single command, and separate build mode, where the subcore firmware is built independently.
@@ -33,6 +37,16 @@ Apart from the IPC components, ESP-AMP comes with a build system that makes it e
 
 Please check [Build System Doc](./docs/build_system.md) for more details.
 
+## System Component
+
+System component contains APIs for maincore to manage life cycle of subcore and process system events from subcore. Supported features at present include:
+
+* Start subcore and stop subcore.
+* Load subcore firmware to DRAM.
+* Deal with subcore panic with customizable handler.
+* Route subcore printf messages to maincore console.
+
+Please check [System Doc](./docs/system.md) for more details.
 
 ## Supported ESP-IDF Version and SoCs
 

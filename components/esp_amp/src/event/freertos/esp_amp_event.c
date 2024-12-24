@@ -10,9 +10,7 @@
 
 #ifdef __cplusplus
 #include <atomic>
-using std::atomic_bool;
 using std::atomic_int;
-using std::atomic_uint;
 #else
 #include <stdatomic.h>
 #endif
@@ -27,7 +25,7 @@ using std::atomic_uint;
 #include "esp_amp_sys_info.h"
 #include "esp_amp_event.h"
 
-#define TAG "event"
+static const DRAM_ATTR char TAG[] = "event";
 
 /* default event storage */
 static StaticEventGroup_t default_event_storage;
@@ -41,10 +39,8 @@ typedef struct {
 
 /**
  * Event Table
- *
- * @note not for event notify. event notify simply writes to event bits
- * event table is used by ISR when SW_INTR_RESERVED_ID_EVENT is triggered
- * event table records the mapping between event handle and event bits
+ * when SW_INTR_RESERVED_ID_EVENT is triggered, ISR will loop against event table
+ * to find the corresponding event handle and event bits to set
  */
 #define ESP_AMP_EVENT_TABLE_LEN (CONFIG_ESP_AMP_EVENT_TABLE_LEN + 1)
 static esp_amp_event_t event_table[ESP_AMP_EVENT_TABLE_LEN]; /* one more entry for default group */
@@ -70,7 +66,7 @@ static IRAM_ATTR int os_env_event_isr(void *args)
         BaseType_t task_yield = 0;
 
         while (!atomic_compare_exchange_weak(event_table[i].event_bits, &unprocessed, 0));
-        ESP_AMP_DRAM_LOGD(DRAM_STR("event"), "got event: sysinfo=%04x, unprocessed=%p", event_table[i].sysinfo_id, (void *)unprocessed);
+        ESP_AMP_DRAM_LOGD(TAG, "got event: sysinfo=%04x, unprocessed=%p", event_table[i].sysinfo_id, (void *)unprocessed);
         xEventGroupSetBitsFromISR(event_table[i].event_handle, unprocessed, &task_yield);
         need_yield |= task_yield;
     }

@@ -14,11 +14,10 @@ extern "C" {
 
 typedef enum {
     SYS_INFO_RESERVED_ID = 0xff00,
-    SYS_INFO_RESERVED_ID_SW_INTR,    /* reserved for software interrupt */
     SYS_INFO_RESERVED_ID_EVENT_MAIN, /* reserved for main core event */
     SYS_INFO_RESERVED_ID_EVENT_SUB,  /* reserved for sub core event */
     SYS_INFO_RESERVED_ID_VQUEUE,     /* store shared queue (packed virt queue) data structure and buffer */
-
+    SYS_INFO_RESERVED_ID_SYSTEM, /* reserved for system service */
     SYS_INFO_ID_MAX = 0xffff, /* max number of sys info */
 } esp_amp_sys_info_id_t;
 

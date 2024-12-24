@@ -13,15 +13,22 @@ set(srcs_common
     "${ESP_AMP_PATH}/components/esp_amp/src/esp_amp_utils.c"
 
     "${ESP_AMP_PATH}/components/esp_amp/port/arch/riscv/esp_amp_arch.c"
+
+    "${ESP_AMP_PATH}/components/esp_amp/system/esp_amp_print.c"
+    "${ESP_AMP_PATH}/components/esp_amp/system/esp_amp_service.c"
+    "${ESP_AMP_PATH}/components/esp_amp/system/esp_amp_panic.c"
+    "${ESP_AMP_PATH}/components/esp_amp/system/esp_amp_system.c"
 )
 
 set(includes_common
     "${ESP_AMP_PATH}/components/esp_amp/include"
     "${ESP_AMP_PATH}/components/esp_amp/port/include"
+    "${ESP_AMP_PATH}/components/esp_amp/system/include"
 )
 
 set(priv_includes_common
     "${ESP_AMP_PATH}/components/esp_amp/priv_include"
+    "${ESP_AMP_PATH}/components/esp_amp/system/priv_include"
 )
 
 if(BOOTLOADER_BUILD)
@@ -57,6 +64,7 @@ if(BOOTLOADER_BUILD)
 
     idf_component_register(
         SRCS ${srcs}
+        PRIV_INCLUDE_DIRS ${priv_includes}
         INCLUDE_DIRS ${includes}
         PRIV_INCLUDE_DIRS ${priv_includes}
         REQUIRES ${reqs}
@@ -123,11 +131,12 @@ else()
             "${ESP_AMP_PATH}/components/esp_amp/src/event/freertos/esp_amp_event.c"
             "${ESP_AMP_PATH}/components/esp_amp/src/rpc/freertos/rpc_client.c"
             "${ESP_AMP_PATH}/components/esp_amp/src/rpc/freertos/rpc_server.c"
-            "${ESP_AMP_PATH}/components/esp_amp/system/esp_amp_loader.c"
-            "${ESP_AMP_PATH}/components/esp_amp/system/esp_amp_cpu.c"
 
             "${ESP_AMP_PATH}/components/esp_amp/port/env/freertos/esp_amp_env.c"
             "${ESP_AMP_PATH}/components/esp_amp/port/platform/hp_core/esp_amp_platform.c"
+
+            "${ESP_AMP_PATH}/components/esp_amp/system/esp_amp_loader.c"
+            "${ESP_AMP_PATH}/components/esp_amp/system/esp_amp_cpu.c"
         )
 
         if(CONFIG_ESP_AMP_SUBCORE_TYPE_LP_CORE)

@@ -22,7 +22,7 @@
 
 #include "esp_amp.h"
 #include "esp_amp_log.h"
-#include "esp_amp_loader.h"
+#include "esp_amp_system.h"
 #include "esp_amp_mem_priv.h"
 
 #if CONFIG_ESP_AMP_SUBCORE_TYPE_LP_CORE
@@ -39,12 +39,12 @@ static uint32_t* ulp_base_address = RTC_SLOW_MEM;
 const static char* TAG = "esp-amp-loader";
 
 #if CONFIG_ESP_AMP_SUBCORE_USE_HP_MEM
-SOC_RESERVE_MEMORY_REGION((intptr_t)(SUBCORE_USE_HP_MEM_BOUNDARY - SUBCORE_USE_HP_MEM_SIZE), (intptr_t)(SUBCORE_USE_HP_MEM_BOUNDARY), subcore_use);
+SOC_RESERVE_MEMORY_REGION((intptr_t)(SUBCORE_USE_HP_MEM_START), (intptr_t)(SUBCORE_USE_HP_MEM_END), subcore_use);
 
 static inline bool is_valid_subcore_app_dram_addr(intptr_t addr)
 {
-    intptr_t dram_reserved_start = SUBCORE_USE_HP_MEM_BOUNDARY - SUBCORE_USE_HP_MEM_SIZE;
-    intptr_t dram_reserved_end = SUBCORE_USE_HP_MEM_BOUNDARY;
+    intptr_t dram_reserved_start = SUBCORE_USE_HP_MEM_START;
+    intptr_t dram_reserved_end = SUBCORE_USE_HP_MEM_END;
     return (addr >= dram_reserved_start && addr <= dram_reserved_end);
 }
 #endif
@@ -96,17 +96,17 @@ esp_err_t esp_amp_load_sub(const void* sub_bin)
     uint8_t* sub_bin_byte_ptr = (uint8_t*)(sub_bin);
 
 #if CONFIG_ESP_AMP_SUBCORE_USE_HP_MEM
-    ESP_AMP_LOGI(TAG, "Reserved dram region (%p - %p) for subcore", (void *)(SUBCORE_USE_HP_MEM_BOUNDARY - SUBCORE_USE_HP_MEM_SIZE), (void *)SUBCORE_USE_HP_MEM_BOUNDARY);
+    ESP_AMP_LOGI(TAG, "Reserved dram region (%p - %p) for subcore", (void *)(SUBCORE_USE_HP_MEM_START), (void *)SUBCORE_USE_HP_MEM_END);
 
     /* unused reserved dram to be given back to main-core heap */
-    intptr_t unused_reserved_dram_start = SUBCORE_USE_HP_MEM_BOUNDARY - SUBCORE_USE_HP_MEM_SIZE;
+    intptr_t unused_reserved_dram_start = SUBCORE_USE_HP_MEM_START;
 #endif
 
     /* Turn off subcore before loading binary */
     esp_amp_stop_subcore();
 
 #if CONFIG_ESP_AMP_SUBCORE_USE_HP_MEM
-    hal_memset((void *)(SUBCORE_USE_HP_MEM_BOUNDARY - SUBCORE_USE_HP_MEM_SIZE), 0, SUBCORE_USE_HP_MEM_SIZE);
+    hal_memset((void *)(SUBCORE_USE_HP_MEM_START), 0, SUBCORE_USE_HP_MEM_SIZE);
 #endif
 
     memcpy(&sub_img_data.image, sub_bin_byte_ptr, sizeof(esp_image_header_t));
@@ -152,12 +152,12 @@ esp_err_t esp_amp_load_sub(const void* sub_bin)
 #if CONFIG_ESP_AMP_SUBCORE_USE_HP_MEM
     /* give unused reserved dram region back to main-core heap */
     if (ret != ESP_OK) {
-        unused_reserved_dram_start = SUBCORE_USE_HP_MEM_BOUNDARY - SUBCORE_USE_HP_MEM_SIZE;
+        unused_reserved_dram_start = SUBCORE_USE_HP_MEM_START;
     }
 
-    if (heap_caps_add_region(unused_reserved_dram_start, (intptr_t)SUBCORE_USE_HP_MEM_BOUNDARY) == ESP_OK) {
+    if (heap_caps_add_region(unused_reserved_dram_start, (intptr_t)SUBCORE_USE_HP_MEM_END) == ESP_OK) {
         ESP_AMP_LOGI(TAG, "Give unused reserved dram region (%p - %p) back to main-core heap",
-                     (void *)unused_reserved_dram_start, (void *)SUBCORE_USE_HP_MEM_BOUNDARY);
+                     (void *)unused_reserved_dram_start, (void *)SUBCORE_USE_HP_MEM_END);
     }
 #endif
 

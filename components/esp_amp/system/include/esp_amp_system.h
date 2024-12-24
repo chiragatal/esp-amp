@@ -4,13 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#pragma once
+
+#if IS_MAIN_CORE
+#include "stdbool.h"
 #include "esp_err.h"
 #include "esp_partition.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#if IS_MAIN_CORE
 /**
  * Load the program binary from partition
  *
@@ -43,6 +49,36 @@ int esp_amp_start_subcore(void);
  * Stop subcore
  */
 void esp_amp_stop_subcore(void);
+
+/**
+ * Initialize esp amp panic
+ *
+ * @retval 0 if successful
+ * @retval -1 if failed
+ */
+int esp_amp_system_panic_init(void);
+
+/**
+ * @brief Check if subcore panic
+ *
+ * @retval true if subcore panic
+ * @retval false if not
+ */
+bool esp_amp_subcore_panic(void);
+
+/**
+ * @brief default handler for subcore panic
+ */
+void esp_amp_subcore_panic_handler_default(void);
+#endif
+
+/**
+ * Initialize esp amp system
+ *
+ * @retval 0 if successful
+ * @retval -1 if failed
+ */
+int esp_amp_system_init(void);
 
 #ifdef __cplusplus
 }

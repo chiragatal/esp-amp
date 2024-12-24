@@ -19,16 +19,9 @@
 
 #define ESP_AMP_SYS_INFO_ID_MAX 0xffff
 
-#if CONFIG_ESP_AMP_SHARED_MEM_IN_HP
-#define ESP_AMP_SYS_INFO_ADDR (ESP_AMP_SHARED_MEM_BOUNDARY - CONFIG_ESP_AMP_SHARED_MEM_SIZE)
-#elif ONFIG_ESP_AMP_SHARED_MEM_IN_LP
-#define ESP_AMP_SYS_INFO_ADDR (RTC_SLOW_MEM + CONFIG_ULP_COPROC_RESERVE_MEM)
-#endif
-
 #if IS_MAIN_CORE
-SOC_RESERVE_MEMORY_REGION(ESP_AMP_SYS_INFO_ADDR, ESP_AMP_SYS_INFO_ADDR + CONFIG_ESP_AMP_SHARED_MEM_SIZE, esp_amp_sys_info);
+SOC_RESERVE_MEMORY_REGION(ESP_AMP_SHARED_MEM_START, ESP_AMP_SHARED_MEM_END, esp_amp_shared_mem);
 #endif
-
 
 typedef struct sys_info_header_t {
     uint16_t info_id;
@@ -36,9 +29,7 @@ typedef struct sys_info_header_t {
     struct sys_info_header_t* next; /* offset related to buffer */
 } sys_info_header_t;
 
-#define ESP_AMP_SYS_INFO_BUFFER_SIZE (CONFIG_ESP_AMP_SHARED_MEM_SIZE)
-
-static sys_info_header_t* const s_esp_amp_sys_info = (sys_info_header_t *)ESP_AMP_SYS_INFO_ADDR;
+static sys_info_header_t* const s_esp_amp_sys_info = (sys_info_header_t *)ESP_AMP_SHARED_MEM_POOL_START;
 
 #if IS_MAIN_CORE
 static uint16_t get_size_word(uint16_t size)
@@ -91,7 +82,7 @@ void* esp_amp_sys_info_alloc(uint16_t info_id, uint16_t size)
     void* next_sys_info_entry_end = (uint8_t*)(next_sys_info_entry_start) + sizeof(sys_info_header_t) + 4 * get_size_word(size);
     void* buffer = (void*)((uint8_t*)(next_sys_info_entry_start) + sizeof(sys_info_header_t));
 
-    if ((uint8_t*)(next_sys_info_entry_end) > (uint8_t*)(s_esp_amp_sys_info) + ESP_AMP_SYS_INFO_BUFFER_SIZE) {
+    if (next_sys_info_entry_end > (void *)ESP_AMP_SHARED_MEM_END) {
         ESP_AMP_LOGE(TAG, "No space in buffer");
         return NULL;
     }
@@ -115,7 +106,7 @@ int esp_amp_sys_info_init(void)
     s_esp_amp_sys_info->size = 0;
     s_esp_amp_sys_info->next = NULL;
 #endif /* IS_MAIN_CORE */
-    ESP_AMP_LOGI(TAG, "ESP-AMP shared memory: addr=%p, len=%p", s_esp_amp_sys_info, (void *)ESP_AMP_SYS_INFO_BUFFER_SIZE);
+    ESP_AMP_LOGI(TAG, "ESP-AMP shared memory: addr=%p, len=%p", s_esp_amp_sys_info, (void *)ESP_AMP_SHARED_MEM_POOL_SIZE);
     return 0;
 }
 

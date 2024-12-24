@@ -5,6 +5,7 @@
  */
 
 #include "sdkconfig.h"
+#include "esp_amp_system.h"
 
 #if CONFIG_ESP_AMP_SUBCORE_TYPE_HP_CORE
 #include "rom/ets_sys.h"

@@ -5,8 +5,8 @@
 */
 
 #include "esp_amp_log.h"
-#include "esp_amp_sys_info.h"
 #include "esp_amp_platform.h"
+#include "esp_amp_mem_priv.h"
 #include "esp_amp_sw_intr.h"
 #include "esp_amp_sw_intr_priv.h"
 #include "esp_amp_platform.h"
@@ -16,11 +16,10 @@
 #include "freertos/task.h"
 #endif
 
-static const char *TAG = "sw_intr";
+static const DRAM_ATTR char TAG[] = "sw_intr";
 
-sw_intr_handler_tbl_t sw_intr_handlers[ESP_AMP_SW_INTR_HANDLER_TABLE_LEN];
-
-esp_amp_sw_intr_st_t *s_sw_intr_st;
+static sw_intr_handler_tbl_t sw_intr_handlers[ESP_AMP_SW_INTR_HANDLER_TABLE_LEN];
+static esp_amp_sw_intr_st_t *s_sw_intr_st = (esp_amp_sw_intr_st_t *)ESP_AMP_SW_INTR_BIT_ADDR;
 
 int esp_amp_sw_intr_add_handler(esp_amp_sw_intr_id_t intr_id, esp_amp_sw_intr_handler_t handler, void *arg)
 {
@@ -90,21 +89,13 @@ void esp_amp_sw_intr_handler_dump(void)
 
 int esp_amp_sw_intr_init(void)
 {
-#if IS_MAIN_CORE
-    /* initialize software interrupt status */
-    s_sw_intr_st = (esp_amp_sw_intr_st_t *) esp_amp_sys_info_alloc(SYS_INFO_RESERVED_ID_SW_INTR, sizeof(esp_amp_sw_intr_st_t));
     if (s_sw_intr_st == NULL) {
-        ESP_AMP_LOGE(TAG, "Failed to alloc sw_intr_st in sys info");
         return -1;
     }
 
+#if IS_MAIN_CORE
     atomic_init(&s_sw_intr_st->main_core_sw_intr_st, 0);
     atomic_init(&s_sw_intr_st->sub_core_sw_intr_st, 0);
-#else
-    s_sw_intr_st = (esp_amp_sw_intr_st_t *) esp_amp_sys_info_get(SYS_INFO_RESERVED_ID_SW_INTR, NULL);
-    if (s_sw_intr_st == NULL) {
-        return -1;
-    }
 #endif
 
     int ret = esp_amp_platform_sw_intr_install();

@@ -7,11 +7,12 @@
 #pragma once
 
 #include "esp_amp_sw_intr.h"
-#include "esp_amp_rpc.h"
 #include "esp_amp_sys_info.h"
 #include "esp_amp_event.h"
-#include "esp_amp_rpmsg.h"
 #include "esp_amp_queue.h"
+#include "esp_amp_rpmsg.h"
+#include "esp_amp_rpc.h"
+
 #include "esp_amp_env.h"
 #include "esp_amp_platform.h"
 

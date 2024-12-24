@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "esp_amp.h"
 #include "esp_err.h"
+#include "stdatomic.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

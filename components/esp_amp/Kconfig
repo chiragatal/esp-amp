@@ -27,7 +27,7 @@ menu "ESP Asymmetric Multi-Processing(AMP) Framework"
             select FREERTOS_UNICORE
     endchoice
 
-    menu "ESP_AMP Memory Management"
+    menu "ESP-AMP Memory Management"
         depends on ESP_AMP_ENABLED
 
         choice ESP_AMP_SHARED_MEM_LOC
@@ -105,7 +105,7 @@ menu "ESP Asymmetric Multi-Processing(AMP) Framework"
 
     endmenu
 
-    menu "ESP_AMP Subcore Hardware FPU"
+    menu "ESP-AMP Subcore Hardware FPU"
         depends on IDF_TARGET_ESP32P4
 
         config ESP_AMP_SUBCORE_ENABLE_HW_FPU
@@ -151,6 +151,29 @@ menu "ESP Asymmetric Multi-Processing(AMP) Framework"
             interrupt triggered by another core. Multiple handlers can process a single
             interrupt. In the meantime, a single handler can process multiple interrupts.
             This parameter here defines the maximum number of handlers can be registered.
+
+    menu "ESP-AMP System"
+        depends on ESP_AMP_ENABLED
+
+        config ESP_AMP_SYSTEM_ENABLE_SUPPLICANT
+            bool "Enable ESP-AMP subcore supplicant"
+            default "n"
+            help
+                Create a daemon task on maincore side to handle subcore requests, such as
+                subcore console output delegation, subcore panic handling, etc. Subcore
+                requests are sent to the daemon task via system-level virtqueue. This feature
+                introduces about 2KB flash footprint, 2.5KB heap usage on maincore firmware
+                and 2KB consumption in shared memory region.
+
+        config ESP_AMP_ROUTE_SUBCORE_PRINT
+            bool "Route subcore print to maincore console via supplicant"
+            depends on ESP_AMP_SYSTEM_ENABLE_SUPPLICANT
+            select ULP_HP_UART_CONSOLE_PRINT if ESP_AMP_SUBCORE_TYPE_LP_CORE
+            default "n"
+            help
+                Route subcore print to maincore console via subcore supplicant. This can solve
+                the interleaved print problem that writing to UART0 directly may suffer from.
+    endmenu
 
     config ESP_AMP_RPC_MAX_PENDING_REQ
         depends on ESP_AMP_ENABLED

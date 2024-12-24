@@ -61,6 +61,10 @@ idf_build_set_property(LINK_OPTIONS "-Wl,--wrap=fprintf" APPEND)
 idf_build_set_property(LINK_OPTIONS "-Wl,--wrap=vprintf" APPEND)
 idf_build_set_property(LINK_OPTIONS "-Wl,--wrap=puts" APPEND)
 
+idf_build_set_property(LINK_OPTIONS "-Wl,--defsym=__wrap_printf=esp_amp_subcore_printf" APPEND)
+idf_build_set_property(LINK_OPTIONS "-Wl,--defsym=__wrap_puts=esp_amp_subcore_puts" APPEND)
+idf_build_set_property(LINK_OPTIONS "-Wl,--defsym=__wrap_putchar=esp_amp_subcore_putchar" APPEND)
+
 # esp-amp related flags
 idf_build_set_property(COMPILE_DEFINITIONS "-DIS_ENV_BM" APPEND)
 idf_build_set_property(COMPILE_DEFINITIONS "BOOTLOADER_BUILD=1" APPEND)
@@ -76,16 +80,9 @@ if(IDF_TARGET STREQUAL "esp32c6")
     idf_build_set_property(COMPILE_DEFINITIONS "-DIS_ULP_COCPU" APPEND)
 endif()
 
-if(IDF_TARGET STREQUAL "esp32c6")
-    idf_build_set_property(LINK_OPTIONS "-Wl,--defsym=__wrap_printf=lp_core_printf" APPEND)
-    idf_build_set_property(LINK_OPTIONS "-Wl,--defsym=__wrap_putchar=lp_core_print_char" APPEND)
-endif()
-
 if(IDF_TARGET STREQUAL "esp32p4")
     # TODO: stddef.h is missing in pmu_struct.h. need this to make compiler happy
     idf_build_set_property(COMPILE_DEFINITIONS "-Doffsetof=__builtin_offsetof" APPEND)
-    idf_build_set_property(LINK_OPTIONS "-Wl,--defsym=__wrap_printf=esp_rom_printf" APPEND)
-    idf_build_set_property(LINK_OPTIONS "-Wl,--defsym=__wrap_putchar=esp_rom_output_putc" APPEND)
 endif()
 
 # override the __target_set_toolchain function in idf build system

@@ -1,6 +1,6 @@
 # Port layer
 
-ESP-AMP creates a port layer to abstract the differences between different environment, as well as the differences between different SoCs, in order to offer a unified interface for upper layers.
+# Overview
 
 In this document, we introduce the organization of port layer and list APIs that can be called from upper layers.
 

@@ -8,14 +8,15 @@
 #include "stdint.h"
 #include "stddef.h"
 #include "string.h"
+#include "esp_attr.h"
 
 #include "esp_amp_rpc.h"
 #include "esp_amp_rpmsg.h"
 #include "esp_amp_log.h"
 
-#define TAG "rpc_server"
-
 #define ESP_AMP_RPC_SERVICE_TABLE_LEN CONFIG_ESP_AMP_RPC_SERVICE_TABLE_LEN
+
+static const DRAM_ATTR char TAG[] = "rpc_server";
 
 typedef struct {
     int len;
