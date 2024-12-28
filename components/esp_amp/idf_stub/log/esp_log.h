@@ -76,10 +76,10 @@ typedef enum {
 
 /* print to UART directly */
 #define ESP_EARLY_LOGE( tag, format, ... )  ESP_LOG_LEVEL_LOCAL(esp_amp_subcore_early_printf, ESP_LOG_ERROR, tag, format, ##__VA_ARGS__)
-#define ESP_EARLY_LOGW( tag, format, ... )  ESP_LOG_LEVEL_LOCAL(esp_amp_subcore_early_printf, ESP_LOG_ERROR, tag, format, ##__VA_ARGS__)
-#define ESP_EARLY_LOGI( tag, format, ... )  ESP_LOG_LEVEL_LOCAL(esp_amp_subcore_early_printf, ESP_LOG_ERROR, tag, format, ##__VA_ARGS__)
-#define ESP_EARLY_LOGD( tag, format, ... )  ESP_LOG_LEVEL_LOCAL(esp_amp_subcore_early_printf, ESP_LOG_ERROR, tag, format, ##__VA_ARGS__)
-#define ESP_EARLY_LOGV( tag, format, ... )  ESP_LOG_LEVEL_LOCAL(esp_amp_subcore_early_printf, ESP_LOG_ERROR, tag, format, ##__VA_ARGS__)
+#define ESP_EARLY_LOGW( tag, format, ... )  ESP_LOG_LEVEL_LOCAL(esp_amp_subcore_early_printf, ESP_LOG_WARN, tag, format, ##__VA_ARGS__)
+#define ESP_EARLY_LOGI( tag, format, ... )  ESP_LOG_LEVEL_LOCAL(esp_amp_subcore_early_printf, ESP_LOG_INFO, tag, format, ##__VA_ARGS__)
+#define ESP_EARLY_LOGD( tag, format, ... )  ESP_LOG_LEVEL_LOCAL(esp_amp_subcore_early_printf, ESP_LOG_DEBUG, tag, format, ##__VA_ARGS__)
+#define ESP_EARLY_LOGV( tag, format, ... )  ESP_LOG_LEVEL_LOCAL(esp_amp_subcore_early_printf, ESP_LOG_VERBOSE, tag, format, ##__VA_ARGS__)
 
 /* XIP is not supported */
 #define ESP_DRAM_LOGE ESP_EARLY_LOGE
